@@ -1,0 +1,32 @@
+/* 开发进度日志 */
+
+时间：2026/05/11 — 项目骨架搭建完成 (v1.0)
+- 搭建四层架构：外部上下文层、本地大脑层、运行时聚合层、交互表层
+- 完成 Node.js 后端服务器 (Express + WebSocket, 端口 8080)
+- 完成 PWA 前端 (播放器/品味/设置三视图)
+- 完成 Claude Code 子进程适配器 (含降级方案)
+- 完成 6 个 HTTP API + WebSocket 实时推送
+- 完成外部 API 封装: 网易云/Fish Audio/OpenWeather/飞书/UPnP (Mock 模式)
+- 完成定时调度器 (每日规划/早间切换/情绪检查/日历Hook)
+
+时间：2026/05/11 — v2.0 企业级模块化重构完成
+- 技术栈升级: TypeScript 全栈 + React 19 + Vite + TailwindCSS 4 + Socket.IO
+- 后端拆分为 8 个独立模块 (brain/context/music/tts/weather/calendar/player/scheduler)
+- 数据层接口抽象 (IStore → JsonStore), 换数据库只改一个文件
+- 前端重构为 9 个 React 组件 + 3 个 hooks
+- npm workspaces monorepo (server + client)
+- Docker 3阶段构建 + docker-compose 一键部署
+- 用户品味文件保留不变 (taste/routines/playlists/mood-rules)
+
+时间：2026/05/11 — 接入网易云音乐真实 API
+- 在 netease-api/ 目录下部署 NeteaseCloudMusicApi 服务 (端口 3000)
+- .env 中关闭 mock 开关，music.service.ts 走真实搜索 + 歌曲 URL 获取
+- 修复 dotenv 路径加载问题 (config.ts 手动指定 .env 路径)
+- 修复中文关键词编码问题 (URLSearchParams 替代手动拼接)
+- 验证端到端: 聊天输入 → 搜索歌曲 → 获取真实 mp3 直链 → 播放器播放
+- 全栈运行: Netease API (3000) + Backend (8080) + Frontend (5173)
+
+待完成：
+- 接入真实 Claude Code CLI 进行智能音乐推荐
+- 填入真实 API Key (Fish Audio / 飞书 / OpenWeather)
+- 部署到公网

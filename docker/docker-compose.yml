@@ -1,0 +1,19 @@
+services:
+  claudio:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: claudio
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../server/data:/app/server/data
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - USE_MOCK_MUSIC=true
+      - USE_MOCK_TTS=true
+      - USE_MOCK_WEATHER=true
+      - USE_MOCK_CALENDAR=true
+      - USE_MOCK_UPNP=true
