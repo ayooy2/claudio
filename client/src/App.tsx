@@ -317,7 +317,9 @@ export default function App() {
   const [showQueue, setShowQueue] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
-  const [liked, setLiked] = useState<Set<string>>(() => new Set(loadState('claudio_favorites', [])));
+  // 收藏数据格式统一为 SongInfo[]（与 SearchPanel 一致）
+  const [likedSongs, setLikedSongs] = useState<SongInfo[]>(() => loadState('claudio_favorites', []));
+  const liked = useMemo(() => new Set(likedSongs.map(s => s.id)), [likedSongs]);
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
   const [volumeVisible, setVolumeVisible] = useState(false);
   const [comment, setComment] = useState<{ content: string; nickname: string; likedCount: number } | null>(null);
@@ -351,9 +353,9 @@ export default function App() {
         localStorage.setItem('claudio_queue', JSON.stringify(queue));
         localStorage.setItem('claudio_queue_idx', JSON.stringify(queueIdx));
       }
-      localStorage.setItem('claudio_favorites', JSON.stringify(Array.from(liked)));
+      localStorage.setItem('claudio_favorites', JSON.stringify(likedSongs));
     } catch {}
-  }, [scene, queue, queueIdx, liked, coverMode, showCover, showTime]);
+  }, [scene, queue, queueIdx, likedSongs, coverMode, showCover, showTime]);
 
   // Preload background image when scene changes
   useEffect(() => {
@@ -501,7 +503,7 @@ export default function App() {
     const nextSong = queue[nextIdx];
     if (nextSong && !nextSong.url) {
       fetch(`/api/song-url?name=${encodeURIComponent(nextSong.name)}&artist=${encodeURIComponent(nextSong.artist)}`)
-        .then(r => r.json())
+        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
         .then(data => {
           if (!cancelled && data.url) {
             setQueue(prev => prev.map((s, i) => i === nextIdx ? { ...s, url: data.url, id: data.id || s.id, cover: data.cover || s.cover } : s));
@@ -527,8 +529,10 @@ export default function App() {
     let n: number;
     if (playMode === 'loop') {
       setCurrentTime(0);
-      if (audioRef.current) audioRef.current.currentTime = 0;
-      audioRef.current?.play();
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+      }
       return;
     } else if (playMode === 'shuffle') {
       // Fix: use functional update to avoid stale playedIndices
@@ -545,22 +549,22 @@ export default function App() {
     } else {
       n = (queueIdx + 1) % queue.length;
     }
-    setQueueIdx(n); setCurrentTime(0); setIsPlaying(true); play(queue[n]);
-  }, [queue, queueIdx, play, setCurrentTime, setIsPlaying, playMode, playedIndices]);
+    setQueueIdx(n); setCurrentTime(0); play(queue[n]);
+  }, [queue, queueIdx, play, setCurrentTime, playMode, playedIndices]);
 
   const handlePrev = useCallback(() => {
     if (queue.length <= 1) return;
     const p = queueIdx <= 0 ? queue.length - 1 : queueIdx - 1;
-    setQueueIdx(p); setCurrentTime(0); setIsPlaying(true); play(queue[p]);
-  }, [queue, queueIdx, play, setCurrentTime, setIsPlaying]);
+    setQueueIdx(p); setCurrentTime(0); play(queue[p]);
+  }, [queue, queueIdx, play, setCurrentTime]);
 
   const handleSeek = useCallback((pct: number) => {
     if (audioRef.current) audioRef.current.currentTime = (audioRef.current.duration || 0) * pct;
   }, []);
 
   const handleSelectSong = useCallback((idx: number) => {
-    setQueueIdx(idx); setCurrentTime(0); setIsPlaying(true); play(queue[idx]); setShowQueue(false);
-  }, [queue, play, setCurrentTime, setIsPlaying]);
+    setQueueIdx(idx); setCurrentTime(0); play(queue[idx]); setShowQueue(false);
+  }, [queue, play, setCurrentTime]);
 
   // Play mode persistence
   useEffect(() => {
@@ -601,7 +605,10 @@ export default function App() {
   // Like
   const toggleLike = useCallback(() => {
     if (!current) return;
-    setLiked(prev => { const n = new Set(prev); if (n.has(current.id)) n.delete(current.id); else n.add(current.id); return n; });
+    setLikedSongs(prev => {
+      const exists = prev.some(s => s.id === current.id);
+      return exists ? prev.filter(s => s.id !== current.id) : [...prev, current];
+    });
   }, [current]);
 
   // Touch gestures for mobile

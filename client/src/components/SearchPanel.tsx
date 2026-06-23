@@ -22,6 +22,7 @@ export default function SearchPanel({ onSelect, accent, text, textDim, show, onC
   const [tab, setTab] = useState<'search' | 'favorites' | 'history'>('search');
   const [favorites, setFavorites] = useState<SongInfo[]>([]);
   const [recentPlays, setRecentPlays] = useState<SongInfo[]>([]);
+  const [selectError, setSelectError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Load from localStorage
@@ -72,6 +73,7 @@ export default function SearchPanel({ onSelect, accent, text, textDim, show, onC
   }, [query]);
 
   const handleSelect = async (song: SongInfo) => {
+    setSelectError(null);
     // Save to history
     const newHistory = [song.name + ' - ' + song.artist, ...history.filter(h => h !== song.name + ' - ' + song.artist)].slice(0, 20);
     setHistory(newHistory);
@@ -86,10 +88,12 @@ export default function SearchPanel({ onSelect, accent, text, textDim, show, onC
         onSelect({ ...song, url: data.url, isTrial: data.isTrial });
         onClose();
       } else {
-        console.error('无法获取播放URL');
+        setSelectError('该歌曲暂无可用播放链接');
+        setTimeout(() => setSelectError(null), 3000);
       }
     } catch (err) {
-      console.error('获取播放URL失败:', err);
+      setSelectError('获取播放链接失败，请重试');
+      setTimeout(() => setSelectError(null), 3000);
     }
   };
 
@@ -163,6 +167,17 @@ export default function SearchPanel({ onSelect, accent, text, textDim, show, onC
           </button>
         ))}
       </div>
+
+      {/* Error toast */}
+      {selectError && (
+        <div style={{
+          margin: '0 20px', padding: '8px 16px', borderRadius: 8,
+          background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.3)',
+          color: '#fca5a5', fontSize: 12, textAlign: 'center',
+        }}>
+          ⚠ {selectError}
+        </div>
+      )}
 
       {/* Content */}
       <div style={{ flex: 1, overflow: 'auto', padding: '12px 20px' }}>

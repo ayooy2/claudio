@@ -249,6 +249,9 @@ export function createApp() {
       res.setHeader('Content-Type', contentType);
       res.setHeader('Accept-Ranges', 'bytes');
       res.setHeader('Cache-Control', 'public, max-age=3600');
+      // 传递上游 Content-Length（浏览器可据此显示进度）
+      const contentLen = audioRes.headers.get('content-length');
+      if (contentLen) res.setHeader('Content-Length', contentLen);
       const reader = audioRes.body?.getReader();
       if (!reader) return res.status(500).json({ error: 'No body' });
       // 流式传输，同时检查前几个字节是否是有效音频

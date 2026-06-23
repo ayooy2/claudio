@@ -4,9 +4,16 @@ import type { SongInfo, SearchResult, UrlResult, ResolvedSong } from './music.ty
 
 const log = logger.child('music');
 
-// ====== In-memory cache with TTL ======
+// ====== In-memory cache with TTL + auto cleanup ======
 class MemoryCache<T> {
   private store = new Map<string, { data: T; expiry: number }>();
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null;
+
+  constructor() {
+    // 每 10 分钟清理过期条目，防止内存泄漏
+    this.cleanupTimer = setInterval(() => this.evictExpired(), 10 * 60 * 1000);
+    if (this.cleanupTimer.unref) this.cleanupTimer.unref(); // 不阻止进程退出
+  }
 
   get(key: string): T | null {
     const entry = this.store.get(key);
@@ -22,20 +29,34 @@ class MemoryCache<T> {
     this.store.set(key, { data, expiry: Date.now() + ttlMs });
   }
 
+  private evictExpired() {
+    const now = Date.now();
+    for (const [key, entry] of this.store) {
+      if (now > entry.expiry) this.store.delete(key);
+    }
+  }
+
   clear() { this.store.clear(); }
 }
 
-// ====== Rate limiter ======
+// ====== Rate limiter (serializes concurrent callers) ======
 class RateLimiter {
   private lastCall = 0;
+  private mutex = Promise.resolve();
 
   async wait(minIntervalMs: number) {
+    // 排队：同一时间只有一个调用者可以进入
+    const prev = this.mutex;
+    let release: () => void;
+    this.mutex = new Promise<void>(r => { release = r; });
+    await prev;
+
     const elapsed = Date.now() - this.lastCall;
     if (elapsed < minIntervalMs) {
-      const delay = minIntervalMs - elapsed;
-      await new Promise(r => setTimeout(r, delay));
+      await new Promise(r => setTimeout(r, minIntervalMs - elapsed));
     }
     this.lastCall = Date.now();
+    release!();
   }
 }
 
