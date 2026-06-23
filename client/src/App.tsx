@@ -823,23 +823,23 @@ export default function App() {
         {/* Now Playing Info — 自适应：封面隐藏时扩展 */}
         {current && (
           <div style={{
-            marginTop: showCover ? 10 : 16,
+            marginTop: showCover ? 10 : 18,
             textAlign: 'center',
-            maxWidth: showCover ? 260 : 380,
+            maxWidth: showCover ? 260 : 420,
             transition: 'max-width 0.5s cubic-bezier(0.4,0,0.2,1), margin-top 0.5s ease',
           }}>
             <div style={{
-              fontSize: showCover ? 14 : 17,
+              fontSize: showCover ? 14 : 22,
               fontWeight: 600, color: sc.text,
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              transition: 'font-size 0.4s ease',
+              transition: 'font-size 0.5s cubic-bezier(0.4,0,0.2,1)',
             }}>
               {current.name}
             </div>
             <div style={{
-              fontSize: showCover ? 11 : 13,
-              color: sc.textDim, marginTop: showCover ? 3 : 4,
-              transition: 'font-size 0.4s ease',
+              fontSize: showCover ? 11 : 14,
+              color: sc.textDim, marginTop: showCover ? 3 : 5,
+              transition: 'font-size 0.5s cubic-bezier(0.4,0,0.2,1)',
             }}>{current.artist}</div>
           </div>
         )}
@@ -847,27 +847,27 @@ export default function App() {
         {/* Inline Lyrics Preview — 自适应：封面隐藏时歌词更大更宽 */}
         {current && lyrics.length > 0 && currentLyricIndex >= 0 && (
           <div style={{
-            marginTop: showCover ? 10 : 14,
+            marginTop: showCover ? 10 : 16,
             textAlign: 'center',
-            maxWidth: showCover ? 300 : 440,
+            maxWidth: showCover ? 300 : 500,
             cursor: 'pointer',
             transition: 'max-width 0.5s cubic-bezier(0.4,0,0.2,1)',
           }}
             onClick={() => setShowLyrics(true)}>
             <div style={{
-              fontSize: showCover ? 13 : 16,
+              fontSize: showCover ? 13 : 20,
               color: sc.accent, fontWeight: 500,
               opacity: 0.8,
               lineHeight: 1.6,
-              transition: 'font-size 0.4s ease',
+              transition: 'font-size 0.5s cubic-bezier(0.4,0,0.2,1)',
             }}>
               {lyrics[currentLyricIndex]?.text || ''}
             </div>
             {currentLyricIndex + 1 < lyrics.length && (
               <div style={{
-                fontSize: showCover ? 11 : 13,
-                color: sc.textDim, opacity: 0.5, marginTop: 3,
-                transition: 'font-size 0.4s ease',
+                fontSize: showCover ? 11 : 15,
+                color: sc.textDim, opacity: 0.5, marginTop: showCover ? 3 : 5,
+                transition: 'font-size 0.5s cubic-bezier(0.4,0,0.2,1)',
               }}>
                 {lyrics[currentLyricIndex + 1]?.text || ''}
               </div>
