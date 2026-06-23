@@ -215,8 +215,16 @@ export function createApp() {
     // SSRF protection: only allow specific domains
     try {
       const parsed = new URL(audioUrl);
-      const allowedHosts = ['music.163.com', 'music.126.net'];
-      if (!allowedHosts.some(h => parsed.hostname === h || parsed.hostname.endsWith('.' + h))) {
+      const isAllowedHost = (hostname: string): boolean => {
+        const allowedDomains = [
+          'music.163.com',
+          'music.126.net',
+        ];
+        return allowedDomains.some(
+          d => hostname === d || hostname.endsWith('.' + d)
+        );
+      };
+      if (!isAllowedHost(parsed.hostname)) {
         return res.status(403).json({ error: 'Domain not allowed' });
       }
     } catch {
