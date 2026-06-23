@@ -857,152 +857,152 @@ export default function App() {
         )}
       </div>
 
-      {/* Controls + Progress */}
-      <div style={{ padding: '0 24px 16px', flexShrink: 0, zIndex: 10, minHeight: 90 }}>
-        {/* Unified Controls Row */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 8, position: 'relative' }}>
-          {/* Queue - absolute left */}
-          <button onClick={() => setShowQueue(!showQueue)} style={{
-            position: 'absolute', left: 0,
-            background: 'none', border: 'none', cursor: 'pointer', color: sc.textDim,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
-            opacity: 0.5, transition: 'opacity 0.2s',
-          }} onMouseEnter={e => e.currentTarget.style.opacity = '1'} onMouseLeave={e => e.currentTarget.style.opacity = '0.5'}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-          </button>
+      {/* Controls + Progress - Three Column Layout */}
+      <div style={{ padding: '0 16px 12px', flexShrink: 0, zIndex: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+          {/* Left: Transport Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Prev */}
+            <button onClick={handlePrev} style={{
+              width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
+              background: 'rgba(255,255,255,0.06)', color: sc.textDim,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all 0.2s ease',
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+            </button>
 
-          {/* Prev */}
-          <button onClick={handlePrev} style={{
-            width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
-            background: 'rgba(255,255,255,0.06)', color: sc.textDim,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'all 0.2s ease',
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
-          </button>
+            {/* Play/Pause */}
+            <button onClick={handleToggle} style={{
+              width: 48, height: 48, borderRadius: '50%', border: 'none', cursor: 'pointer',
+              background: `${sc.accent}18`, color: sc.accent,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all 0.2s ease', boxShadow: `0 0 16px ${sc.accent}15`,
+              opacity: isLoading ? 0.6 : 1,
+            }}>
+              {isLoading ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: 'spin 1s linear infinite' }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+              ) : isPlaying ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              )}
+            </button>
 
-          {/* Play/Pause */}
-          <button onClick={handleToggle} style={{
-            width: 48, height: 48, borderRadius: '50%', border: 'none', cursor: 'pointer',
-            background: `${sc.accent}18`, color: sc.accent,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'all 0.2s ease', boxShadow: `0 0 16px ${sc.accent}15`,
-            opacity: isLoading ? 0.6 : 1,
-          }}>
-            {isLoading ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: 'spin 1s linear infinite' }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-            ) : isPlaying ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            {/* Next */}
+            <button onClick={handleNext} style={{
+              width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
+              background: 'rgba(255,255,255,0.06)', color: sc.textDim,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all 0.2s ease',
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+            </button>
+          </div>
+
+          {/* Center: Progress Bar */}
+          <div style={{ flex: 1, margin: '0 16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+              <span style={{ fontSize: 10, color: sc.textDim, fontVariantNumeric: 'tabular-nums' }}>{fmtTime(currentTime)}</span>
+              <span style={{ fontSize: 10, color: sc.textDim, fontVariantNumeric: 'tabular-nums' }}>{fmtTime(duration)}</span>
+            </div>
+            <div style={{ height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2, cursor: 'pointer', position: 'relative' }}
+              onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); handleSeek((e.clientX - r.left) / r.width); }}
+              onMouseDown={(e) => {
+                const bar = e.currentTarget;
+                const onMove = (ev: MouseEvent) => {
+                  const r = bar.getBoundingClientRect();
+                  handleSeek(Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)));
+                };
+                const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('mouseup', onUp);
+              }}>
+              <div style={{ width: `${pct}%`, height: '100%', background: sc.accent, borderRadius: 2, transition: 'width 0.1s linear' }} />
+              <div style={{
+                position: 'absolute', top: '50%', left: `${pct}%`,
+                width: 10, height: 10, borderRadius: '50%', background: sc.accent,
+                transform: 'translate(-50%, -50%)', opacity: 0.8,
+              }} />
+            </div>
+            {queue.length > 0 && (
+              <div style={{ textAlign: 'center', marginTop: 4, fontSize: 9, color: sc.textDim, opacity: 0.3 }}>
+                {queueIdx + 1} / {queue.length}
+              </div>
             )}
-          </button>
+          </div>
 
-          {/* Next */}
-          <button onClick={handleNext} style={{
-            width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
-            background: 'rgba(255,255,255,0.06)', color: sc.textDim,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'all 0.2s ease',
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
-          </button>
-
-          {/* Divider */}
-          <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)', margin: '0 2px' }} />
-
-          {/* Like */}
-          <button onClick={toggleLike} style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
-            transition: 'all 0.2s ease',
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill={current && liked.has(current.id) ? '#ff6b8a' : 'none'} stroke={current && liked.has(current.id) ? '#ff6b8a' : sc.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-          </button>
-
-          {/* Lyrics */}
-          <button onClick={() => setShowLyrics(!showLyrics)} style={{
-            background: showLyrics ? `${sc.accent}15` : 'none',
-            border: 'none', borderRadius: 6,
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
-            transition: 'all 0.2s ease',
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={showLyrics ? sc.accent : sc.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 10h12M4 14h16M4 18h8"/></svg>
-          </button>
-
-          {/* Play Mode */}
-          <button onClick={() => setPlayMode(m => m === 'sequence' ? 'shuffle' : m === 'shuffle' ? 'loop' : 'sequence')} style={{
-            background: 'none', border: 'none', borderRadius: 6,
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
-            transition: 'all 0.2s ease',
-          }} title={playMode === 'sequence' ? '顺序播放' : playMode === 'shuffle' ? '随机播放' : '列表循环'}>
-            {playMode === 'sequence' ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={sc.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>
-            ) : playMode === 'shuffle' ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={sc.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={sc.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-            )}
-          </button>
-
-          {/* Volume - absolute right */}
-          <div style={{ position: 'absolute', right: 0, display: 'flex', alignItems: 'center', gap: 4 }}
-            onMouseEnter={() => setVolumeVisible(true)} onMouseLeave={() => setVolumeVisible(false)}>
-            <button onClick={toggleMute} style={{
+          {/* Right: Utility Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {/* Like */}
+            <button onClick={toggleLike} style={{
               background: 'none', border: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
+              transition: 'all 0.2s ease',
             }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isMuted ? sc.accent : sc.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                {isMuted || volume === 0 ? (
-                  <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></>
-                ) : volume < 0.5 ? (
-                  <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></>
-                ) : (
-                  <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></>
-                )}
-              </svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill={current && liked.has(current.id) ? '#ff6b8a' : 'none'} stroke={current && liked.has(current.id) ? '#ff6b8a' : sc.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             </button>
-            <input type="range" min={0} max={100} value={isMuted ? 0 : Math.round(volume * 100)}
-              onChange={e => setVolume(Number(e.target.value) / 100)}
-              style={{
-                width: 56, accentColor: sc.accent, height: 2,
-                opacity: volumeVisible ? 0.8 : 0.3, transition: 'opacity 0.3s',
-              }} />
-          </div>
-        </div>
 
-        {/* Progress Bar */}
-        <div style={{ marginBottom: 6 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <span style={{ fontSize: 10, color: sc.textDim, fontVariantNumeric: 'tabular-nums' }}>{fmtTime(currentTime)}</span>
-            <span style={{ fontSize: 10, color: sc.textDim, fontVariantNumeric: 'tabular-nums' }}>{fmtTime(duration)}</span>
-          </div>
-          <div style={{ height: 3, background: 'rgba(255,255,255,0.08)', borderRadius: 2, cursor: 'pointer', position: 'relative' }}
-            onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); handleSeek((e.clientX - r.left) / r.width); }}
-            onMouseDown={(e) => {
-              const bar = e.currentTarget;
-              const onMove = (ev: MouseEvent) => {
-                const r = bar.getBoundingClientRect();
-                handleSeek(Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)));
-              };
-              const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
-              window.addEventListener('mousemove', onMove);
-              window.addEventListener('mouseup', onUp);
+            {/* Lyrics */}
+            <button onClick={() => setShowLyrics(!showLyrics)} style={{
+              background: showLyrics ? `${sc.accent}15` : 'none',
+              border: 'none', borderRadius: 6,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
+              transition: 'all 0.2s ease',
             }}>
-            <div style={{ width: `${pct}%`, height: '100%', background: sc.accent, borderRadius: 2, transition: 'width 0.1s linear' }} />
-            <div style={{
-              position: 'absolute', top: '50%', left: `${pct}%`,
-              width: 10, height: 10, borderRadius: '50%', background: sc.accent,
-              transform: 'translate(-50%, -50%)', opacity: 0.8,
-            }} />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={showLyrics ? sc.accent : sc.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 10h12M4 14h16M4 18h8"/></svg>
+            </button>
+
+            {/* Play Mode */}
+            <button onClick={() => setPlayMode(m => m === 'sequence' ? 'shuffle' : m === 'shuffle' ? 'loop' : 'sequence')} style={{
+              background: 'none', border: 'none', borderRadius: 6,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
+              transition: 'all 0.2s ease',
+            }} title={playMode === 'sequence' ? '顺序播放' : playMode === 'shuffle' ? '随机播放' : '列表循环'}>
+              {playMode === 'sequence' ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={sc.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>
+              ) : playMode === 'shuffle' ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={sc.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={sc.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+              )}
+            </button>
+
+            {/* Volume */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+              onMouseEnter={() => setVolumeVisible(true)} onMouseLeave={() => setVolumeVisible(false)}>
+              <button onClick={toggleMute} style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isMuted ? sc.accent : sc.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {isMuted || volume === 0 ? (
+                    <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></>
+                  ) : volume < 0.5 ? (
+                    <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></>
+                  ) : (
+                    <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></>
+                  )}
+                </svg>
+              </button>
+              <input type="range" min={0} max={100} value={isMuted ? 0 : Math.round(volume * 100)}
+                onChange={e => setVolume(Number(e.target.value) / 100)}
+                style={{
+                  width: 56, accentColor: sc.accent, height: 2,
+                  opacity: volumeVisible ? 0.8 : 0.3, transition: 'opacity 0.3s',
+                }} />
+            </div>
+
+            {/* Queue */}
+            <button onClick={() => setShowQueue(!showQueue)} style={{
+              background: 'none', border: 'none', cursor: 'pointer', color: sc.textDim,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
+              opacity: 0.5, transition: 'opacity 0.2s',
+            }} onMouseEnter={e => e.currentTarget.style.opacity = '1'} onMouseLeave={e => e.currentTarget.style.opacity = '0.5'}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            </button>
           </div>
         </div>
-
-        {queue.length > 0 && (
-          <div style={{ textAlign: 'center', marginTop: 2, fontSize: 9, color: sc.textDim, opacity: 0.3 }}>
-            {queueIdx + 1} / {queue.length}
-          </div>
-        )}
       </div>
 
       <QueueDrawer queue={queue} queueIdx={queueIdx} show={showQueue}
