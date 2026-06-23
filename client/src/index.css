@@ -28,6 +28,10 @@ audio { display: none; }
 @keyframes equalizer { 0% { height: 4px; } 100% { height: 12px; } }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 @keyframes viz-bar { 0% { height: 4px; opacity: 0.4; } 100% { height: 22px; opacity: 1; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
 
 /* Force full viewport */
 #root, html, body {

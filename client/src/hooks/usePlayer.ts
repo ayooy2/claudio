@@ -17,6 +17,7 @@ export function usePlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [current, setCurrent] = useState<SongInfo | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolumeState] = useState(() => {
@@ -30,6 +31,9 @@ export function usePlayer() {
   const [isMuted, setIsMuted] = useState(false);
   const [volumeBeforeMute, setVolumeBeforeMute] = useState(volume);
 
+  // Ref for play to avoid stale closures in auto-play scenarios
+  const playRef = useRef<(song: SongInfo) => Promise<void>>(undefined!);
+
   const play = useCallback(async (song: SongInfo) => {
     setCurrent(song);
     setCurrentTime(0);
@@ -38,6 +42,7 @@ export function usePlayer() {
     // If no URL, fetch it first
     let url = song.url;
     if (!url) {
+      setIsLoading(true);
       try {
         const res = await fetch(`/api/song-url?name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(song.artist)}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -49,20 +54,34 @@ export function usePlayer() {
       } catch (e) {
         console.warn('获取URL失败:', e);
         setIsPlaying(false);
+        setIsLoading(false);
         return;
       }
+      setIsLoading(false);
+    }
+
+    if (!url) {
+      setIsPlaying(false);
+      return;
     }
 
     setIsPlaying(true);
-    if (audioRef.current && url) {
+    if (audioRef.current) {
       audioRef.current.src = url;
       audioRef.current.load();
-      audioRef.current.play().catch((e) => {
-        console.warn('播放失败:', e.message);
-        setIsPlaying(false);
-      });
+      try {
+        await audioRef.current.play();
+      } catch (e: any) {
+        // AbortError is expected when a new play interrupts an old one
+        if (e?.name !== 'AbortError') {
+          console.warn('播放失败:', e?.message);
+          setIsPlaying(false);
+        }
+      }
     }
   }, []);
+
+  playRef.current = play;
 
   // Use functional update to avoid stale isPlaying closure
   const togglePlay = useCallback(() => {
@@ -106,8 +125,8 @@ export function usePlayer() {
   }, []);
 
   return {
-    audioRef, current, setCurrent, isPlaying, setIsPlaying,
+    audioRef, current, setCurrent, isPlaying, setIsPlaying, isLoading,
     currentTime, setCurrentTime, duration, setDuration,
-    volume, isMuted, play, togglePlay, setVolume, toggleMute, seek,
+    volume, isMuted, play, playRef, togglePlay, setVolume, toggleMute, seek,
   };
 }

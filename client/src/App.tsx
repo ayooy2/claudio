@@ -311,8 +311,8 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
 
-  const { audioRef, current, isPlaying, currentTime, duration, volume, isMuted,
-    play, togglePlay, toggleMute, setVolume, seek, setCurrentTime, setDuration, setIsPlaying } = usePlayer();
+  const { audioRef, current, isPlaying, isLoading, currentTime, duration, volume, isMuted,
+    play, playRef, togglePlay, toggleMute, setVolume, seek, setCurrentTime, setDuration, setIsPlaying } = usePlayer();
   const { socket } = useSocket();
 
   // Refs for latest state (avoid stale closures)
@@ -886,7 +886,12 @@ export default function App() {
             background: `${sc.accent}15`, color: sc.accent, fontSize: 20,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             transition: 'all 0.2s ease', boxShadow: `0 0 20px ${sc.accent}20`,
-          }}>{isPlaying ? '⏸' : '▶'}</button>
+            opacity: isLoading ? 0.6 : 1,
+          }}>{isLoading ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: 'spin 1s linear infinite' }}>
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+            </svg>
+          ) : isPlaying ? '⏸' : '▶'}</button>
           {/* Right: next + volume */}
           <button onClick={handleNext} style={{
             width: 40, height: 40, borderRadius: '50%', border: 'none', cursor: 'pointer',
@@ -978,69 +983,144 @@ export default function App() {
         onClose={() => setShowQueue(false)} onSelect={handleSelectSong}
         accent={sc.accent} text={sc.text} textDim={sc.textDim} />
 
-      {/* Lyrics Panel - 全屏沉浸式 */}
+      {/* Lyrics Panel - 沉浸式歌词 */}
       {showLyrics && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 55,
-          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(40px)',
+          background: 'rgba(0,0,0,0.55)',
+          backdropFilter: 'blur(16px)',
           display: 'flex', flexDirection: 'column',
+          animation: 'fadeIn 0.4s ease',
         }}>
-          {/* 顶部：歌曲信息 + 关闭 */}
+          {/* 顶部：关闭按钮 */}
           <div style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: '20px 28px', flexShrink: 0,
+            padding: '16px 24px', flexShrink: 0,
           }}>
-            <div>
-              <div style={{ fontSize: 16, color: sc.text, fontWeight: 600 }}>{current?.name}</div>
-              <div style={{ fontSize: 12, color: sc.textDim, marginTop: 2 }}>{current?.artist}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, color: sc.text, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{current?.name}</div>
+              <div style={{ fontSize: 11, color: sc.textDim, marginTop: 2 }}>{current?.artist}</div>
             </div>
             <button onClick={() => setShowLyrics(false)} style={{
-              background: 'rgba(255,255,255,0.08)', border: 'none',
-              borderRadius: 20, padding: '6px 16px', cursor: 'pointer',
+              background: 'rgba(255,255,255,0.1)', border: 'none',
+              borderRadius: 16, padding: '5px 14px', cursor: 'pointer',
               color: sc.textDim, fontSize: 11, letterSpacing: 0.5,
+              backdropFilter: 'blur(8px)',
+              flexShrink: 0, marginLeft: 12,
             }}>收起</button>
           </div>
 
-          {/* 歌词主体 - 居中滚动 */}
-          <div ref={el => {
-            if (el && currentLyricIndex >= 0) {
-              const target = el.children[currentLyricIndex] as HTMLElement;
-              if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-          }} style={{
-            flex: 1, overflow: 'auto', padding: '40px 20%',
-            display: 'flex', flexDirection: 'column', alignItems: 'center',
-            maskImage: 'linear-gradient(transparent 0%, black 15%, black 85%, transparent 100%)',
-            WebkitMaskImage: 'linear-gradient(transparent 0%, black 15%, black 85%, transparent 100%)',
+          {/* 中间：封面 + 歌词 */}
+          <div style={{
+            flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+            overflow: 'hidden', minHeight: 0,
           }}>
-            {/* 顶部留白 */}
-            <div style={{ height: '35vh', flexShrink: 0 }} />
-            {lyrics.map((line, i) => {
-              const isCurrent = i === currentLyricIndex;
-              const isNear = Math.abs(i - currentLyricIndex) <= 2;
-              return (
-                <div key={i} onClick={() => {
-                  // 点击歌词跳转到对应时间
-                  if (audioRef.current) {
-                    audioRef.current.currentTime = line.time;
-                    setCurrentTime(line.time);
-                  }
-                }} style={{
-                  padding: '12px 0',
-                  fontSize: isCurrent ? 22 : isNear ? 16 : 14,
-                  lineHeight: 1.8,
-                  fontWeight: isCurrent ? 700 : isNear ? 400 : 300,
-                  color: isCurrent ? sc.text : isNear ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.2)',
-                  transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  transform: isCurrent ? 'scale(1.05)' : 'scale(1)',
-                  letterSpacing: isCurrent ? 1 : 0.5,
-                }}>{line.text || '···'}</div>
-              );
-            })}
-            {/* 底部留白 */}
-            <div style={{ height: '40vh', flexShrink: 0 }} />
+            {/* 专辑封面 - 毛玻璃卡片 */}
+            {current?.cover && (
+              <div style={{
+                width: 'min(45vw, 160px)', aspectRatio: '1', borderRadius: 16,
+                overflow: 'hidden', flexShrink: 0, marginTop: 8,
+                boxShadow: `0 8px 32px rgba(0,0,0,0.4), 0 0 60px ${sc.accent}12`,
+                position: 'relative',
+              }}>
+                <img src={current.cover} alt="" style={{
+                  width: '100%', height: '100%', objectFit: 'cover', display: 'block',
+                }} />
+                {/* 封面底部模糊渐变，和歌词区域融合 */}
+                <div style={{
+                  position: 'absolute', bottom: 0, left: 0, right: 0, height: '40%',
+                  background: 'linear-gradient(transparent, rgba(0,0,0,0.4))',
+                }} />
+              </div>
+            )}
+
+            {/* 歌词区域 - 可滚动 */}
+            <div ref={el => {
+              if (el && currentLyricIndex >= 0) {
+                // Find the actual lyric div (skip spacers)
+                const lyricDivs = el.querySelectorAll('[data-lyric]');
+                const target = lyricDivs[currentLyricIndex] as HTMLElement;
+                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            }} style={{
+              flex: 1, overflow: 'auto', width: '100%',
+              padding: '16px 24px',
+              maskImage: 'linear-gradient(transparent 0%, black 10%, black 90%, transparent 100%)',
+              WebkitMaskImage: 'linear-gradient(transparent 0%, black 10%, black 90%, transparent 100%)',
+            }}>
+              {/* 顶部留白 */}
+              <div style={{ height: '8vh', flexShrink: 0 }} />
+              {lyrics.map((line, i) => {
+                const isCurrent = i === currentLyricIndex;
+                const dist = Math.abs(i - currentLyricIndex);
+                const isNear = dist <= 2;
+                return (
+                  <div key={i} data-lyric onClick={() => {
+                    if (audioRef.current) {
+                      audioRef.current.currentTime = line.time;
+                      setCurrentTime(line.time);
+                    }
+                  }} style={{
+                    padding: isCurrent ? '14px 0' : '10px 0',
+                    fontSize: isCurrent ? 20 : isNear ? 15 : 13,
+                    lineHeight: 1.7,
+                    fontWeight: isCurrent ? 700 : isNear ? 400 : 300,
+                    color: isCurrent ? sc.text : isNear ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)',
+                    transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    transform: isCurrent ? 'scale(1.03)' : 'scale(1)',
+                    letterSpacing: isCurrent ? 1.5 : 0.5,
+                    textShadow: isCurrent ? `0 0 20px ${sc.accent}30` : 'none',
+                  }}>{line.text || '···'}</div>
+                );
+              })}
+              {/* 底部留白 */}
+              <div style={{ height: '30vh', flexShrink: 0 }} />
+            </div>
+          </div>
+
+          {/* 底部：迷你进度条 + 控制 */}
+          <div style={{
+            padding: '12px 24px 20px', flexShrink: 0,
+            background: 'linear-gradient(transparent, rgba(0,0,0,0.3))',
+          }}>
+            {/* 进度条 */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ height: 2, background: 'rgba(255,255,255,0.1)', borderRadius: 1, cursor: 'pointer', position: 'relative' }}
+                onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); handleSeek((e.clientX - r.left) / r.width); }}>
+                <div style={{ width: `${pct}%`, height: '100%', background: sc.accent, borderRadius: 1, transition: 'width 0.3s linear' }} />
+                <div style={{
+                  position: 'absolute', top: '50%', left: `${pct}%`,
+                  width: 8, height: 8, borderRadius: '50%', background: sc.accent,
+                  transform: 'translate(-50%, -50%)', opacity: 0.9,
+                }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                <span style={{ fontSize: 9, color: sc.textDim, fontVariantNumeric: 'tabular-nums', opacity: 0.6 }}>{fmtTime(currentTime)}</span>
+                <span style={{ fontSize: 9, color: sc.textDim, fontVariantNumeric: 'tabular-nums', opacity: 0.6 }}>{fmtTime(duration)}</span>
+              </div>
+            </div>
+            {/* 播放控制 */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28 }}>
+              <button onClick={handlePrev} style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: sc.textDim, fontSize: 18, opacity: 0.7,
+                transition: 'opacity 0.2s',
+              }}>⏮</button>
+              <button onClick={handleToggle} style={{
+                width: 46, height: 46, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                background: 'rgba(255,255,255,0.12)', color: sc.text,
+                fontSize: 18, backdropFilter: 'blur(8px)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.2s ease',
+              }}>{isPlaying ? '⏸' : '▶'}</button>
+              <button onClick={handleNext} style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: sc.textDim, fontSize: 18, opacity: 0.7,
+                transition: 'opacity 0.2s',
+              }}>⏭</button>
+            </div>
           </div>
         </div>
       )}
