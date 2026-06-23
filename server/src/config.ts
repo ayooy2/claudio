@@ -27,11 +27,11 @@ export const config = {
   isDev: env('NODE_ENV') !== 'production',
 
   mock: {
-    music: envBool('USE_MOCK_MUSIC'),
-    tts: envBool('USE_MOCK_TTS'),
-    weather: envBool('USE_MOCK_WEATHER'),
-    calendar: envBool('USE_MOCK_CALENDAR'),
-    upnp: envBool('USE_MOCK_UPNP'),
+    music: envBool('USE_MOCK_MUSIC', false),
+    tts: envBool('USE_MOCK_TTS', false),
+    weather: envBool('USE_MOCK_WEATHER', false),
+    calendar: envBool('USE_MOCK_CALENDAR', false),
+    upnp: envBool('USE_MOCK_UPNP', false),
   },
 
   netease: {

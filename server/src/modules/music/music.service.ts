@@ -152,8 +152,8 @@ export class MusicService {
 
       return { success: true, songs: sorted };
     } catch (err) {
-      log.warn('网易云搜索失败，降级为 mock');
-      return this.mockSearch(keyword, limit);
+      log.warn('网易云搜索失败:', err);
+      return { success: false, songs: [] };
     }
   }
 
@@ -214,8 +214,9 @@ export class MusicService {
       }
 
       return result;
-    } catch {
-      return { success: true, mock: true, url: `${MOCK_AUDIO_BASE}${songId}.mp3`, br: 320000, isTrial: false };
+    } catch (err) {
+      log.warn(`getSongUrl 失败 (${songId}):`, err);
+      return { success: false, url: null, br: 0, isTrial: false };
     }
   }
 

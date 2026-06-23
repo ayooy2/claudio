@@ -89,30 +89,35 @@ export function usePlayer() {
       return;
     }
 
-    // Stop current playback first
+    // Stop current playback and reset
     try { audio.pause(); } catch {}
+    audio.removeAttribute('src');
+    audio.load(); // reset media state
 
-    audio.src = url;
-    audio.volume = volumeRef.current;
-    audio.load();
-
-    // Wait for canplay before calling play()
+    // 先添加事件监听，再设置 src 和 load()，避免丢失 canplay 事件
     try {
       await new Promise<void>((resolve, reject) => {
         const onCanPlay = () => { cleanup(); resolve(); };
         const onErr = () => {
           cleanup();
           const err = audio.error;
-          reject(new Error(err ? `媒体错误 code=${err.code}` : '加载失败'));
+          // code=2=ABORTED 不算错误（被新播放中断）
+          if (err?.code === MediaError.MEDIA_ERR_ABORTED) return resolve();
+          reject(new Error(err ? `媒体错误 code=${err.code} (${['', '用户中止','网络错误','解码错误','格式不支持'][err.code] || '未知'})` : '加载失败'));
         };
         const cleanup = () => {
           audio.removeEventListener('canplay', onCanPlay);
           audio.removeEventListener('error', onErr);
+          clearTimeout(timer);
         };
         audio.addEventListener('canplay', onCanPlay, { once: true });
         audio.addEventListener('error', onErr, { once: true });
-        // Timeout for loading
-        setTimeout(() => { cleanup(); reject(new Error('加载超时')); }, 10000);
+        // 超时
+        const timer = setTimeout(() => { cleanup(); reject(new Error('加载超时（10s）')); }, 10000);
+        // 触发加载
+        audio.src = url;
+        audio.volume = volumeRef.current;
+        audio.load();
       });
 
       await audio.play();
@@ -120,7 +125,7 @@ export function usePlayer() {
       setPlayError(null);
     } catch (e: any) {
       if (e?.name === 'AbortError') {
-        // New play interrupted this one — don't show error
+        // 新播放中断了旧播放，不算错误
         return;
       }
       console.warn('播放失败:', e?.message);

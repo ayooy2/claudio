@@ -236,15 +236,47 @@ export function createApp() {
         signal: AbortSignal.timeout(15_000),
       });
       if (!audioRes.ok) return res.status(audioRes.status).json({ error: `Upstream: ${audioRes.status}` });
-      const contentType = audioRes.headers.get('content-type') ?? 'audio/mpeg';
+      // 修正 Content-Type：音频文件不应带 charset，且确保是浏览器支持的格式
+      let contentType = audioRes.headers.get('content-type') ?? 'audio/mpeg';
+      // 移除 charset（音频流不需要）
+      contentType = contentType.replace(/;\s*charset=[^;]*/i, '');
+      // 如果上游返回 generic octet-stream，从 URL 推断类型
+      if (contentType === 'application/octet-stream' || contentType === 'application/json') {
+        const ext = audioUrl.split('?')[0].split('.').pop()?.toLowerCase();
+        const extMap: Record<string, string> = { mp3: 'audio/mpeg', flac: 'audio/flac', aac: 'audio/aac', m4a: 'audio/mp4', ogg: 'audio/ogg', wav: 'audio/wav' };
+        contentType = extMap[ext || ''] || 'audio/mpeg';
+      }
       res.setHeader('Content-Type', contentType);
+      res.setHeader('Accept-Ranges', 'bytes');
       res.setHeader('Cache-Control', 'public, max-age=3600');
       const reader = audioRes.body?.getReader();
       if (!reader) return res.status(500).json({ error: 'No body' });
+      // 流式传输，同时检查前几个字节是否是有效音频
+      let bytesWritten = 0;
+      let headerChecked = false;
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        if (!headerChecked && value.length > 12) {
+          headerChecked = true;
+          const magic = Buffer.from(value.slice(0, 12));
+          const isAudio =
+            (magic[0] === 0xFF && (magic[1] & 0xE0) === 0xE0) || // MP3 sync word
+            magic.toString('ascii', 0, 3) === 'ID3' ||            // MP3 ID3 tag
+            magic.toString('ascii', 0, 4) === 'fLaC' ||           // FLAC
+            magic.toString('ascii', 0, 4) === 'OggS' ||           // OGG
+            magic.toString('ascii', 4, 8) === 'ftyp';             // M4A/AAC
+          if (!isAudio) {
+            console.warn('音频代理：上游返回非音频数据，前12字节:', magic.toString('hex'));
+            res.status(502).json({ error: 'Upstream returned non-audio data' });
+            return;
+          }
+        }
         res.write(Buffer.from(value));
+        bytesWritten += value.length;
+      }
+      if (bytesWritten < 1024) {
+        console.warn(`音频代理：响应体过小 (${bytesWritten} bytes)，可能无效`);
       }
       res.end();
     } catch (err) {
