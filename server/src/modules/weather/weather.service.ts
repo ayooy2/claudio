@@ -14,7 +14,7 @@ export interface WeatherData {
 
 export class WeatherService {
   async getCurrent(): Promise<WeatherData> {
-    if (config.mock.weather) {
+    if (config.mock.weather || !config.openWeather.apiKey) {
       return {
         mock: true,
         city: config.openWeather.city,

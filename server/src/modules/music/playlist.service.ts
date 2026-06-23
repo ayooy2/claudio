@@ -67,16 +67,25 @@ function loadAndAnalyze(): PlaylistAnalysis {
     try {
       const cached = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf-8'));
       // Check if wyy.json has been modified since cache was created
-      const playlistStat = fs.statSync(PLAYLIST_FILE);
-      const cacheTime = new Date(cached.analyzedAt).getTime();
-      if (playlistStat.mtimeMs < cacheTime + 60_000) {
-        log.debug('使用缓存的歌单分析');
+      if (fs.existsSync(PLAYLIST_FILE)) {
+        const playlistStat = fs.statSync(PLAYLIST_FILE);
+        const cacheTime = new Date(cached.analyzedAt).getTime();
+        if (playlistStat.mtimeMs < cacheTime + 60_000) {
+          log.debug('使用缓存的歌单分析');
+          return cached;
+        }
+      } else {
+        log.debug('wyy.json 不存在，使用缓存');
         return cached;
       }
     } catch { /* regenerate */ }
   }
 
-  // Load and analyze
+  // Load and analyze — wyy.json 可能不存在
+  if (!fs.existsSync(PLAYLIST_FILE)) {
+    log.warn('wyy.json 不存在，歌单功能不可用');
+    return { totalSongs: 0, uniqueArtists: 0, langs: {}, topArtists: [], songs: [], analyzedAt: new Date().toISOString() };
+  }
   const raw = fs.readFileSync(PLAYLIST_FILE, 'utf-8');
   const songs: SongEntry[] = JSON.parse(raw);
   const analysis = analyzePlaylist(songs);
