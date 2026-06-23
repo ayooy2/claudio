@@ -820,29 +820,55 @@ export default function App() {
           )}
         </div>
 
-        {/* Now Playing Info */}
+        {/* Now Playing Info — 自适应：封面隐藏时扩展 */}
         {current && (
-          <div style={{ marginTop: 10, textAlign: 'center', maxWidth: 260 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: sc.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{
+            marginTop: showCover ? 10 : 16,
+            textAlign: 'center',
+            maxWidth: showCover ? 260 : 380,
+            transition: 'max-width 0.5s cubic-bezier(0.4,0,0.2,1), margin-top 0.5s ease',
+          }}>
+            <div style={{
+              fontSize: showCover ? 14 : 17,
+              fontWeight: 600, color: sc.text,
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              transition: 'font-size 0.4s ease',
+            }}>
               {current.name}
             </div>
-            <div style={{ fontSize: 11, color: sc.textDim, marginTop: 3 }}>{current.artist}</div>
+            <div style={{
+              fontSize: showCover ? 11 : 13,
+              color: sc.textDim, marginTop: showCover ? 3 : 4,
+              transition: 'font-size 0.4s ease',
+            }}>{current.artist}</div>
           </div>
         )}
 
-        {/* Inline Lyrics Preview */}
+        {/* Inline Lyrics Preview — 自适应：封面隐藏时歌词更大更宽 */}
         {current && lyrics.length > 0 && currentLyricIndex >= 0 && (
-          <div style={{ marginTop: 10, textAlign: 'center', maxWidth: 300, cursor: 'pointer' }}
+          <div style={{
+            marginTop: showCover ? 10 : 14,
+            textAlign: 'center',
+            maxWidth: showCover ? 300 : 440,
+            cursor: 'pointer',
+            transition: 'max-width 0.5s cubic-bezier(0.4,0,0.2,1)',
+          }}
             onClick={() => setShowLyrics(true)}>
             <div style={{
-              fontSize: 13, color: sc.accent, fontWeight: 500,
-              opacity: 0.8, transition: 'all 0.3s ease',
+              fontSize: showCover ? 13 : 16,
+              color: sc.accent, fontWeight: 500,
+              opacity: 0.8,
               lineHeight: 1.6,
+              transition: 'font-size 0.4s ease',
             }}>
               {lyrics[currentLyricIndex]?.text || ''}
             </div>
             {currentLyricIndex + 1 < lyrics.length && (
-              <div style={{ fontSize: 11, color: sc.textDim, opacity: 0.5, marginTop: 3 }}>
+              <div style={{
+                fontSize: showCover ? 11 : 13,
+                color: sc.textDim, opacity: 0.5, marginTop: 3,
+                transition: 'font-size 0.4s ease',
+              }}>
                 {lyrics[currentLyricIndex + 1]?.text || ''}
               </div>
             )}
@@ -860,8 +886,17 @@ export default function App() {
       {/* Controls + Progress - Three Column Layout */}
       <div style={{ padding: '0 16px 12px', flexShrink: 0, zIndex: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-          {/* Left: Transport Controls */}
+          {/* Left: Queue + Transport Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Queue */}
+            <button onClick={() => setShowQueue(!showQueue)} style={{
+              background: 'none', border: 'none', cursor: 'pointer', color: sc.textDim,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
+              opacity: 0.5, transition: 'opacity 0.2s',
+            }} onMouseEnter={e => e.currentTarget.style.opacity = '1'} onMouseLeave={e => e.currentTarget.style.opacity = '0.5'}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            </button>
+
             {/* Prev */}
             <button onClick={handlePrev} style={{
               width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
@@ -901,7 +936,7 @@ export default function App() {
           </div>
 
           {/* Center: Progress Bar */}
-          <div style={{ flex: 1, margin: '0 16px' }}>
+          <div style={{ flex: 1, margin: '0 20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
               <span style={{ fontSize: 10, color: sc.textDim, fontVariantNumeric: 'tabular-nums' }}>{fmtTime(currentTime)}</span>
               <span style={{ fontSize: 10, color: sc.textDim, fontVariantNumeric: 'tabular-nums' }}>{fmtTime(duration)}</span>
@@ -992,15 +1027,6 @@ export default function App() {
                   opacity: volumeVisible ? 0.8 : 0.3, transition: 'opacity 0.3s',
                 }} />
             </div>
-
-            {/* Queue */}
-            <button onClick={() => setShowQueue(!showQueue)} style={{
-              background: 'none', border: 'none', cursor: 'pointer', color: sc.textDim,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
-              opacity: 0.5, transition: 'opacity 0.2s',
-            }} onMouseEnter={e => e.currentTarget.style.opacity = '1'} onMouseLeave={e => e.currentTarget.style.opacity = '0.5'}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-            </button>
           </div>
         </div>
       </div>
@@ -1041,10 +1067,10 @@ export default function App() {
             flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
             overflow: 'hidden', minHeight: 0,
           }}>
-            {/* 专辑封面 - 毛玻璃卡片 */}
+            {/* 专辑封面 - 毛玻璃卡片，自适应窗口 */}
             {current?.cover && (
               <div style={{
-                width: 'min(45vw, 160px)', aspectRatio: '1', borderRadius: 16,
+                width: 'min(30vh, 45vw, 180px)', aspectRatio: '1', borderRadius: 16,
                 overflow: 'hidden', flexShrink: 0, marginTop: 8,
                 boxShadow: `0 8px 32px rgba(0,0,0,0.4), 0 0 60px ${sc.accent}12`,
                 position: 'relative',
@@ -1070,7 +1096,7 @@ export default function App() {
               }
             }} style={{
               flex: 1, overflow: 'auto', width: '100%',
-              padding: '16px 24px',
+              maxWidth: 600, padding: '16px 24px',
               maskImage: 'linear-gradient(transparent 0%, black 10%, black 90%, transparent 100%)',
               WebkitMaskImage: 'linear-gradient(transparent 0%, black 10%, black 90%, transparent 100%)',
             }}>
