@@ -310,6 +310,8 @@ export default function App() {
   const [coverMode, setCoverMode] = useState<'vinyl' | 'fullcover'>(() => loadState('claudio_cover_mode', 'vinyl'));
   const [showSettings, setShowSettings] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showCover, setShowCover] = useState(() => loadState('claudio_show_cover', true));
+  const [showTime, setShowTime] = useState(() => loadState('claudio_show_time', true));
 
   const { audioRef, current, isPlaying, isLoading, currentTime, duration, volume, isMuted,
     play, playRef, togglePlay, toggleMute, setVolume, seek, setCurrentTime, setDuration, setIsPlaying } = usePlayer();
@@ -326,13 +328,15 @@ export default function App() {
     try {
       localStorage.setItem('claudio_scene', JSON.stringify(scene));
       localStorage.setItem('claudio_cover_mode', JSON.stringify(coverMode));
+      localStorage.setItem('claudio_show_cover', JSON.stringify(showCover));
+      localStorage.setItem('claudio_show_time', JSON.stringify(showTime));
       if (queue.length > 0) {
         localStorage.setItem('claudio_queue', JSON.stringify(queue));
         localStorage.setItem('claudio_queue_idx', JSON.stringify(queueIdx));
       }
       localStorage.setItem('claudio_favorites', JSON.stringify(Array.from(liked)));
     } catch {}
-  }, [scene, queue, queueIdx, liked, coverMode]);
+  }, [scene, queue, queueIdx, liked, coverMode, showCover, showTime]);
 
   // Preload background image when scene changes
   useEffect(() => {
@@ -693,7 +697,13 @@ export default function App() {
 
       {/* Central Area: Clock + Cover */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 10, minHeight: 0, overflow: 'auto', padding: '0 16px' }}>
-        <Clock textDim={sc.textDim} compact={!!current} />
+        {/* Clock - 过渡动画 */}
+        <div style={{
+          maxHeight: showTime ? 120 : 0, opacity: showTime ? 1 : 0,
+          overflow: 'hidden', transition: 'max-height 0.5s cubic-bezier(0.4,0,0.2,1), opacity 0.4s ease',
+        }}>
+          <Clock textDim={sc.textDim} compact={!!current} />
+        </div>
 
         {/* Audio Visualizer */}
         {isPlaying && (
@@ -710,100 +720,105 @@ export default function App() {
         )}
 
         {/* Album Cover */}
-        <style>{`
-          .cover-vinyl { width: min(42vw, 35vh, 220px); aspect-ratio: 1; flex-shrink: 0; transition: all 0.4s ease; }
-          .cover-full { width: min(40vw, 32vh, 200px); aspect-ratio: 1; flex-shrink: 0; transition: all 0.4s ease; }
-          .cover-vinyl.playing { width: min(38vw, 30vh, 180px); }
-          .cover-full.playing { width: min(36vw, 28vh, 170px); }
-          @media (max-width: 480px) { .cover-vinyl { width: min(50vw, 32vh, 180px); } .cover-full { width: min(45vw, 28vh, 160px); } .cover-vinyl.playing { width: min(42vw, 26vh, 150px); } .cover-full.playing { width: min(40vw, 24vh, 140px); } }
-          :fullscreen .cover-vinyl { width: min(35vw, 40vh, 300px); }
-          :fullscreen .cover-full { width: min(35vw, 40vh, 300px); }
-          :fullscreen .cover-vinyl.playing { width: min(30vw, 35vh, 260px); }
-          :fullscreen .cover-full.playing { width: min(30vw, 35vh, 260px); }
-        `}</style>
-        {coverMode === 'vinyl' ? (
-          /* ===== 黑胶唱片 ===== */
-          <div className={`cover-vinyl${isPlaying ? ' playing' : ''}`} style={{ marginTop: 20, position: 'relative' }}>
-            {/* 整个唱片（旋转） */}
-            <div style={{
-              width: '100%', height: '100%', borderRadius: '50%',
-              background: '#111',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              position: 'relative',
-              animation: isPlaying ? 'spin 20s linear infinite' : 'none',
-              boxShadow: isPlaying ? `0 0 60px rgba(0,0,0,0.6)` : '0 0 30px rgba(0,0,0,0.3)',
-              transition: 'box-shadow 0.5s ease',
-            }}>
-              {/* 纹理沟槽 */}
+        <div style={{
+          maxHeight: showCover ? 500 : 0, opacity: showCover ? 1 : 0,
+          overflow: 'hidden', transition: 'max-height 0.6s cubic-bezier(0.4,0,0.2,1), opacity 0.4s ease',
+        }}>
+          <style>{`
+            .cover-vinyl { width: min(42vw, 35vh, 220px); aspect-ratio: 1; flex-shrink: 0; transition: all 0.4s ease; }
+            .cover-full { width: min(40vw, 32vh, 200px); aspect-ratio: 1; flex-shrink: 0; transition: all 0.4s ease; }
+            .cover-vinyl.playing { width: min(38vw, 30vh, 180px); }
+            .cover-full.playing { width: min(36vw, 28vh, 170px); }
+            @media (max-width: 480px) { .cover-vinyl { width: min(50vw, 32vh, 180px); } .cover-full { width: min(45vw, 28vh, 160px); } .cover-vinyl.playing { width: min(42vw, 26vh, 150px); } .cover-full.playing { width: min(40vw, 24vh, 140px); } }
+            :fullscreen .cover-vinyl { width: min(35vw, 40vh, 300px); }
+            :fullscreen .cover-full { width: min(35vw, 40vh, 300px); }
+            :fullscreen .cover-vinyl.playing { width: min(30vw, 35vh, 260px); }
+            :fullscreen .cover-full.playing { width: min(30vw, 35vh, 260px); }
+          `}</style>
+          {coverMode === 'vinyl' ? (
+            /* ===== 黑胶唱片 ===== */
+            <div className={`cover-vinyl${isPlaying ? ' playing' : ''}`} style={{ marginTop: 20, position: 'relative' }}>
+              {/* 整个唱片（旋转） */}
               <div style={{
-                position: 'absolute', width: '100%', height: '100%', borderRadius: '50%',
-                background: `repeating-radial-gradient(circle at center,
-                  transparent 0px, transparent 4px,
-                  rgba(255,255,255,0.04) 4.5px, transparent 5px,
-                  transparent 9px, rgba(255,255,255,0.02) 9.5px, transparent 10px,
-                  transparent 14px, rgba(255,255,255,0.03) 14.5px, transparent 15px)`,
-                pointerEvents: 'none',
-              }} />
-              {/* 高光反射 */}
-              <div style={{
-                position: 'absolute', width: '100%', height: '100%', borderRadius: '50%',
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 40%, transparent 60%, rgba(255,255,255,0.03) 100%)',
-                pointerEvents: 'none',
-              }} />
-              {/* 封面图（居中圆形，占比约60%） */}
-              {current?.cover ? (
-                <img src={current.cover} alt={current.name} style={{
-                  width: '60%', height: '60%', borderRadius: '50%', objectFit: 'cover',
-                  position: 'relative', zIndex: 1,
-                  border: '3px solid rgba(255,255,255,0.1)',
-                  boxShadow: '0 0 20px rgba(0,0,0,0.5)',
-                }} />
-              ) : (
+                width: '100%', height: '100%', borderRadius: '50%',
+                background: '#111',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                position: 'relative',
+                animation: isPlaying ? 'spin 20s linear infinite' : 'none',
+                boxShadow: isPlaying ? `0 0 60px rgba(0,0,0,0.6)` : '0 0 30px rgba(0,0,0,0.3)',
+                transition: 'box-shadow 0.5s ease',
+              }}>
+                {/* 纹理沟槽 */}
                 <div style={{
-                  width: '60%', height: '60%', borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  position: 'relative', zIndex: 1,
-                }}>
-                  <span style={{ fontSize: 'min(10vw, 48px)', opacity: 0.2 }}>🎵</span>
-                </div>
-              )}
-              {/* 中心轴孔 */}
-              <div style={{
-                position: 'absolute', width: 16, height: 16, borderRadius: '50%',
-                background: '#1a1a2e', border: '2px solid rgba(255,255,255,0.15)',
-                zIndex: 2,
-              }} />
-            </div>
-            {/* 播放指示器 */}
-            {isPlaying && <PlayIndicator accent={sc.accent} bottom={-4} right={-4} border={`1px solid ${sc.accent}30`} />}
-          </div>
-        ) : (
-          /* ===== 全屏封面 ===== */
-          <div className={`cover-full${isPlaying ? ' playing' : ''}`} style={{ marginTop: 20, position: 'relative' }}>
-            <div style={{
-              width: '100%', height: '100%', borderRadius: 20, overflow: 'hidden', position: 'relative',
-              boxShadow: isPlaying
-                ? `0 8px 40px rgba(0,0,0,0.5), 0 0 60px ${sc.accent}15`
-                : '0 4px 20px rgba(0,0,0,0.3)',
-              transition: 'box-shadow 0.5s ease',
-            }}>
-              {current?.cover ? (
-                <img src={current.cover} alt={current.name} style={{
-                  width: '100%', height: '100%', objectFit: 'cover', display: 'block',
+                  position: 'absolute', width: '100%', height: '100%', borderRadius: '50%',
+                  background: `repeating-radial-gradient(circle at center,
+                    transparent 0px, transparent 4px,
+                    rgba(255,255,255,0.04) 4.5px, transparent 5px,
+                    transparent 9px, rgba(255,255,255,0.02) 9.5px, transparent 10px,
+                    transparent 14px, rgba(255,255,255,0.03) 14.5px, transparent 15px)`,
+                  pointerEvents: 'none',
                 }} />
-              ) : (
+                {/* 高光反射 */}
                 <div style={{
-                  width: '100%', height: '100%', background: 'rgba(255,255,255,0.03)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <span style={{ fontSize: 'min(15vw, 80px)', opacity: 0.15 }}>🎵</span>
-                </div>
-              )}
+                  position: 'absolute', width: '100%', height: '100%', borderRadius: '50%',
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 40%, transparent 60%, rgba(255,255,255,0.03) 100%)',
+                  pointerEvents: 'none',
+                }} />
+                {/* 封面图（居中圆形，占比约60%） */}
+                {current?.cover ? (
+                  <img src={current.cover} alt={current.name} style={{
+                    width: '60%', height: '60%', borderRadius: '50%', objectFit: 'cover',
+                    position: 'relative', zIndex: 1,
+                    border: '3px solid rgba(255,255,255,0.1)',
+                    boxShadow: '0 0 20px rgba(0,0,0,0.5)',
+                  }} />
+                ) : (
+                  <div style={{
+                    width: '60%', height: '60%', borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    position: 'relative', zIndex: 1,
+                  }}>
+                    <span style={{ fontSize: 'min(10vw, 48px)', opacity: 0.2 }}>🎵</span>
+                  </div>
+                )}
+                {/* 中心轴孔 */}
+                <div style={{
+                  position: 'absolute', width: 16, height: 16, borderRadius: '50%',
+                  background: '#1a1a2e', border: '2px solid rgba(255,255,255,0.15)',
+                  zIndex: 2,
+                }} />
+              </div>
               {/* 播放指示器 */}
-              {isPlaying && <PlayIndicator accent={sc.accent} bottom={12} right={12} bg="rgba(0,0,0,0.6)" />}
+              {isPlaying && <PlayIndicator accent={sc.accent} bottom={-4} right={-4} border={`1px solid ${sc.accent}30`} />}
             </div>
-          </div>
-        )}
+          ) : (
+            /* ===== 全屏封面 ===== */
+            <div className={`cover-full${isPlaying ? ' playing' : ''}`} style={{ marginTop: 20, position: 'relative' }}>
+              <div style={{
+                width: '100%', height: '100%', borderRadius: 20, overflow: 'hidden', position: 'relative',
+                boxShadow: isPlaying
+                  ? `0 8px 40px rgba(0,0,0,0.5), 0 0 60px ${sc.accent}15`
+                  : '0 4px 20px rgba(0,0,0,0.3)',
+                transition: 'box-shadow 0.5s ease',
+              }}>
+                {current?.cover ? (
+                  <img src={current.cover} alt={current.name} style={{
+                    width: '100%', height: '100%', objectFit: 'cover', display: 'block',
+                  }} />
+                ) : (
+                  <div style={{
+                    width: '100%', height: '100%', background: 'rgba(255,255,255,0.03)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <span style={{ fontSize: 'min(15vw, 80px)', opacity: 0.15 }}>🎵</span>
+                  </div>
+                )}
+                {/* 播放指示器 */}
+                {isPlaying && <PlayIndicator accent={sc.accent} bottom={12} right={12} bg="rgba(0,0,0,0.6)" />}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Now Playing Info */}
         {current && (
@@ -844,9 +859,121 @@ export default function App() {
 
       {/* Controls + Progress */}
       <div style={{ padding: '0 24px 16px', flexShrink: 0, zIndex: 10, minHeight: 90 }}>
+        {/* Unified Controls Row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 8, position: 'relative' }}>
+          {/* Queue - absolute left */}
+          <button onClick={() => setShowQueue(!showQueue)} style={{
+            position: 'absolute', left: 0,
+            background: 'none', border: 'none', cursor: 'pointer', color: sc.textDim,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
+            opacity: 0.5, transition: 'opacity 0.2s',
+          }} onMouseEnter={e => e.currentTarget.style.opacity = '1'} onMouseLeave={e => e.currentTarget.style.opacity = '0.5'}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          </button>
+
+          {/* Prev */}
+          <button onClick={handlePrev} style={{
+            width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
+            background: 'rgba(255,255,255,0.06)', color: sc.textDim,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'all 0.2s ease',
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+          </button>
+
+          {/* Play/Pause */}
+          <button onClick={handleToggle} style={{
+            width: 48, height: 48, borderRadius: '50%', border: 'none', cursor: 'pointer',
+            background: `${sc.accent}18`, color: sc.accent,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'all 0.2s ease', boxShadow: `0 0 16px ${sc.accent}15`,
+            opacity: isLoading ? 0.6 : 1,
+          }}>
+            {isLoading ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: 'spin 1s linear infinite' }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            ) : isPlaying ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            )}
+          </button>
+
+          {/* Next */}
+          <button onClick={handleNext} style={{
+            width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
+            background: 'rgba(255,255,255,0.06)', color: sc.textDim,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'all 0.2s ease',
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+          </button>
+
+          {/* Divider */}
+          <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)', margin: '0 2px' }} />
+
+          {/* Like */}
+          <button onClick={toggleLike} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
+            transition: 'all 0.2s ease',
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill={current && liked.has(current.id) ? '#ff6b8a' : 'none'} stroke={current && liked.has(current.id) ? '#ff6b8a' : sc.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          </button>
+
+          {/* Lyrics */}
+          <button onClick={() => setShowLyrics(!showLyrics)} style={{
+            background: showLyrics ? `${sc.accent}15` : 'none',
+            border: 'none', borderRadius: 6,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
+            transition: 'all 0.2s ease',
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={showLyrics ? sc.accent : sc.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 10h12M4 14h16M4 18h8"/></svg>
+          </button>
+
+          {/* Play Mode */}
+          <button onClick={() => setPlayMode(m => m === 'sequence' ? 'shuffle' : m === 'shuffle' ? 'loop' : 'sequence')} style={{
+            background: 'none', border: 'none', borderRadius: 6,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
+            transition: 'all 0.2s ease',
+          }} title={playMode === 'sequence' ? '顺序播放' : playMode === 'shuffle' ? '随机播放' : '列表循环'}>
+            {playMode === 'sequence' ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={sc.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>
+            ) : playMode === 'shuffle' ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={sc.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={sc.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            )}
+          </button>
+
+          {/* Volume - absolute right */}
+          <div style={{ position: 'absolute', right: 0, display: 'flex', alignItems: 'center', gap: 4 }}
+            onMouseEnter={() => setVolumeVisible(true)} onMouseLeave={() => setVolumeVisible(false)}>
+            <button onClick={toggleMute} style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isMuted ? sc.accent : sc.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {isMuted || volume === 0 ? (
+                  <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></>
+                ) : volume < 0.5 ? (
+                  <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></>
+                ) : (
+                  <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></>
+                )}
+              </svg>
+            </button>
+            <input type="range" min={0} max={100} value={isMuted ? 0 : Math.round(volume * 100)}
+              onChange={e => setVolume(Number(e.target.value) / 100)}
+              style={{
+                width: 56, accentColor: sc.accent, height: 2,
+                opacity: volumeVisible ? 0.8 : 0.3, transition: 'opacity 0.3s',
+              }} />
+          </div>
+        </div>
+
         {/* Progress Bar */}
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+        <div style={{ marginBottom: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
             <span style={{ fontSize: 10, color: sc.textDim, fontVariantNumeric: 'tabular-nums' }}>{fmtTime(currentTime)}</span>
             <span style={{ fontSize: 10, color: sc.textDim, fontVariantNumeric: 'tabular-nums' }}>{fmtTime(duration)}</span>
           </div>
@@ -871,109 +998,8 @@ export default function App() {
           </div>
         </div>
 
-        {/* Control Buttons: play centered, others relative to it */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10, position: 'relative' }}>
-          {/* Left: prev */}
-          <button onClick={handlePrev} style={{
-            width: 40, height: 40, borderRadius: '50%', border: 'none', cursor: 'pointer',
-            background: 'rgba(255,255,255,0.04)', color: sc.textDim, fontSize: 16,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'all 0.2s ease', marginRight: 20,
-          }}>⏮</button>
-          {/* Center: play */}
-          <button onClick={handleToggle} style={{
-            width: 52, height: 52, borderRadius: '50%', border: 'none', cursor: 'pointer',
-            background: `${sc.accent}15`, color: sc.accent, fontSize: 20,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'all 0.2s ease', boxShadow: `0 0 20px ${sc.accent}20`,
-            opacity: isLoading ? 0.6 : 1,
-          }}>{isLoading ? (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: 'spin 1s linear infinite' }}>
-              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-            </svg>
-          ) : isPlaying ? '⏸' : '▶'}</button>
-          {/* Right: next + volume */}
-          <button onClick={handleNext} style={{
-            width: 40, height: 40, borderRadius: '50%', border: 'none', cursor: 'pointer',
-            background: 'rgba(255,255,255,0.04)', color: sc.textDim, fontSize: 16,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'all 0.2s ease', marginLeft: 20, marginRight: 8,
-          }}>⏭</button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}
-            onMouseEnter={() => setVolumeVisible(true)} onMouseLeave={() => setVolumeVisible(false)}>
-            <button onClick={toggleMute} style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: isMuted ? sc.accent : sc.textDim, fontSize: 13,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
-            }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                {isMuted || volume === 0 ? (
-                  <>
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none" />
-                    <line x1="23" y1="9" x2="17" y2="15" />
-                    <line x1="17" y1="9" x2="23" y2="15" />
-                  </>
-                ) : volume < 0.5 ? (
-                  <>
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none" />
-                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                  </>
-                ) : (
-                  <>
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none" />
-                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                  </>
-                )}
-              </svg>
-            </button>
-            <input type="range" min={0} max={100} value={isMuted ? 0 : Math.round(volume * 100)}
-              onChange={e => setVolume(Number(e.target.value) / 100)}
-              style={{
-                width: 56, accentColor: sc.accent, height: 2,
-                opacity: volumeVisible ? 0.8 : 0.3, transition: 'opacity 0.3s',
-              }} />
-          </div>
-        </div>
-
-        {/* Bottom Bar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <button onClick={() => setShowQueue(!showQueue)} style={{
-            background: 'none', border: 'none', cursor: 'pointer', color: sc.textDim,
-            fontSize: 13, opacity: 0.6, transition: 'opacity 0.2s',
-          }} onMouseEnter={e => e.currentTarget.style.opacity = '1'} onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}>≡</button>
-
-          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-            <button onClick={toggleLike} style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: current && liked.has(current.id) ? '#ff6b8a' : sc.textDim,
-              fontSize: current && liked.has(current.id) ? 16 : 14,
-              transition: 'all 0.2s ease',
-            }}>{current && liked.has(current.id) ? '♥' : '♡'}</button>
-            <button onClick={() => setShowLyrics(!showLyrics)} style={{
-              background: showLyrics ? `${sc.accent}15` : 'none',
-              border: showLyrics ? `1px solid ${sc.accent}30` : '1px solid transparent',
-              borderRadius: 6, padding: '2px 8px', cursor: 'pointer',
-              color: showLyrics ? sc.accent : sc.textDim,
-              fontSize: 11, fontWeight: 500, letterSpacing: 1,
-              transition: 'all 0.2s ease',
-            }}>文</button>
-            <button onClick={() => setPlayMode(m => {
-              const next = m === 'sequence' ? 'shuffle' : m === 'shuffle' ? 'loop' : 'sequence';
-              return next;
-            })} style={{
-              background: playMode !== 'sequence' ? `${sc.accent}10` : 'none',
-              border: 'none', borderRadius: 6, padding: '2px 6px',
-              cursor: 'pointer', color: playMode !== 'sequence' ? sc.accent : sc.textDim,
-              fontSize: 12, transition: 'all 0.2s ease',
-            }} title={playMode === 'sequence' ? '顺序播放' : playMode === 'shuffle' ? '随机播放' : '列表循环'}>
-              {playMode === 'sequence' ? '→' : playMode === 'shuffle' ? '⤮' : '↻'}
-            </button>
-          </div>
-        </div>
-
         {queue.length > 0 && (
-          <div style={{ textAlign: 'center', marginTop: 6, fontSize: 9, color: sc.textDim, opacity: 0.4 }}>
+          <div style={{ textAlign: 'center', marginTop: 2, fontSize: 9, color: sc.textDim, opacity: 0.3 }}>
             {queueIdx + 1} / {queue.length}
           </div>
         )}
@@ -1166,6 +1192,39 @@ export default function App() {
                     transition: 'all 0.2s ease',
                   }}>{mode === 'vinyl' ? '🎵 黑胶' : '🖼️ 封面'}</button>
                 ))}
+              </div>
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, color: sc.textDim, marginBottom: 10, letterSpacing: 0.5 }}>显示控制</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '6px 0' }}>
+                  <span style={{ fontSize: 12, color: sc.textDim }}>显示专辑封面</span>
+                  <button onClick={() => setShowCover(v => !v)} style={{
+                    width: 36, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer', position: 'relative',
+                    background: showCover ? sc.accent : 'rgba(255,255,255,0.15)',
+                    transition: 'background 0.3s ease',
+                  }}>
+                    <div style={{
+                      width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                      position: 'absolute', top: 2, left: showCover ? 18 : 2,
+                      transition: 'left 0.3s ease', boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                    }} />
+                  </button>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '6px 0' }}>
+                  <span style={{ fontSize: 12, color: sc.textDim }}>显示时钟</span>
+                  <button onClick={() => setShowTime(v => !v)} style={{
+                    width: 36, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer', position: 'relative',
+                    background: showTime ? sc.accent : 'rgba(255,255,255,0.15)',
+                    transition: 'background 0.3s ease',
+                  }}>
+                    <div style={{
+                      width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                      position: 'absolute', top: 2, left: showTime ? 18 : 2,
+                      transition: 'left 0.3s ease', boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                    }} />
+                  </button>
+                </label>
               </div>
             </div>
             <div>
