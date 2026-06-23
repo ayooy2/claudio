@@ -705,20 +705,6 @@ export default function App() {
           <Clock textDim={sc.textDim} compact={!!current} />
         </div>
 
-        {/* Audio Visualizer */}
-        {isPlaying && (
-          <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 24, marginTop: 12 }}>
-            {[0, 1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} style={{
-                width: 3, borderRadius: 2,
-                background: `linear-gradient(to top, ${sc.accent}60, ${sc.accent})`,
-                animation: `viz-bar 0.8s ease-in-out ${i * 0.1}s infinite alternate`,
-                height: 8 + (i % 3) * 4,
-              }} />
-            ))}
-          </div>
-        )}
-
         {/* Album Cover */}
         <div style={{
           maxHeight: showCover ? 500 : 0, opacity: showCover ? 1 : 0,
@@ -820,16 +806,16 @@ export default function App() {
           )}
         </div>
 
-        {/* Now Playing Info — 自适应：封面隐藏时扩展 */}
-        {current && (
+        {/* Now Playing Info — 三档自适应：都显示/少一个/都隐藏 */}
+        {(() => { const hc = (showCover ? 0 : 1) + (showTime ? 0 : 1); return current && (
           <div style={{
-            marginTop: showCover ? 10 : 18,
+            marginTop: [10, 14, 20][hc],
             textAlign: 'center',
-            maxWidth: showCover ? 260 : 420,
+            maxWidth: [260, 360, 480][hc],
             transition: 'max-width 0.5s cubic-bezier(0.4,0,0.2,1), margin-top 0.5s ease',
           }}>
             <div style={{
-              fontSize: showCover ? 14 : 22,
+              fontSize: [14, 18, 24][hc],
               fontWeight: 600, color: sc.text,
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               transition: 'font-size 0.5s cubic-bezier(0.4,0,0.2,1)',
@@ -837,25 +823,25 @@ export default function App() {
               {current.name}
             </div>
             <div style={{
-              fontSize: showCover ? 11 : 14,
-              color: sc.textDim, marginTop: showCover ? 3 : 5,
+              fontSize: [11, 14, 17][hc],
+              color: sc.textDim, marginTop: [3, 4, 6][hc],
               transition: 'font-size 0.5s cubic-bezier(0.4,0,0.2,1)',
             }}>{current.artist}</div>
           </div>
-        )}
+        ); })()}
 
-        {/* Inline Lyrics Preview — 自适应：封面隐藏时歌词更大更宽 */}
-        {current && lyrics.length > 0 && currentLyricIndex >= 0 && (
+        {/* Inline Lyrics Preview — 三档自适应 */}
+        {(() => { const hc = (showCover ? 0 : 1) + (showTime ? 0 : 1); return current && lyrics.length > 0 && currentLyricIndex >= 0 && (
           <div style={{
-            marginTop: showCover ? 10 : 16,
+            marginTop: [10, 14, 18][hc],
             textAlign: 'center',
-            maxWidth: showCover ? 300 : 500,
+            maxWidth: [300, 420, 540][hc],
             cursor: 'pointer',
             transition: 'max-width 0.5s cubic-bezier(0.4,0,0.2,1)',
           }}
             onClick={() => setShowLyrics(true)}>
             <div style={{
-              fontSize: showCover ? 13 : 20,
+              fontSize: [13, 17, 22][hc],
               color: sc.accent, fontWeight: 500,
               opacity: 0.8,
               lineHeight: 1.6,
@@ -865,15 +851,29 @@ export default function App() {
             </div>
             {currentLyricIndex + 1 < lyrics.length && (
               <div style={{
-                fontSize: showCover ? 11 : 15,
-                color: sc.textDim, opacity: 0.5, marginTop: showCover ? 3 : 5,
+                fontSize: [11, 14, 17][hc],
+                color: sc.textDim, opacity: 0.5, marginTop: [3, 4, 6][hc],
                 transition: 'font-size 0.5s cubic-bezier(0.4,0,0.2,1)',
               }}>
                 {lyrics[currentLyricIndex + 1]?.text || ''}
               </div>
             )}
           </div>
-        )}
+        ); })()}
+
+        {/* Audio Visualizer — 自适应间距 */}
+        {(() => { const hc = (showCover ? 0 : 1) + (showTime ? 0 : 1); return isPlaying && (
+          <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 24, marginTop: [12, 16, 20][hc], transition: 'margin-top 0.5s ease' }}>
+            {[0, 1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} style={{
+                width: 3, borderRadius: 2,
+                background: `linear-gradient(to top, ${sc.accent}60, ${sc.accent})`,
+                animation: `viz-bar 0.8s ease-in-out ${i * 0.1}s infinite alternate`,
+                height: 8 + (i % 3) * 4,
+              }} />
+            ))}
+          </div>
+        ); })()}
 
         {/* Placeholder when no song */}
         {!current && (
