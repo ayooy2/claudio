@@ -9,13 +9,11 @@ import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { logger } from './common/logger.js';
 import { requestLogger, errorHandler, notFound } from './common/middleware.js';
-import { chatRouter } from './routes/chat.router.js';
 import { stateRouter } from './routes/state.router.js';
-import { tasteRouter } from './routes/taste.router.js';
-import { planRouter } from './routes/plan.router.js';
 import { prefsRouter } from './routes/prefs.router.js';
 import { schedulerService } from './modules/scheduler/scheduler.service.js';
 import { playerService } from './modules/player/player.service.js';
+import { musicService } from './modules/music/music.service.js';
 import { getStore } from './store/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -23,41 +21,218 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export function createApp() {
   const app = express();
   const server = http.createServer(app);
-  const io = new SocketIOServer(server, {
-    cors: { origin: '*' },
-    path: '/ws',
-  });
+  const io = new SocketIOServer(server, { cors: { origin: '*' }, path: '/ws' });
 
-  // Middleware
   app.use(cors());
   app.use(express.json());
   app.use(requestLogger);
 
-  // Audio proxy — forwards Netease CDN audio with proper Referer
+  const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');
+  app.use(express.static(clientDist));
+  app.use('/tts', express.static(path.join(__dirname, '..', 'cache', 'tts')));
+
+  // ===== Music API =====
+
+  // Get playlist from wyy.json
+  app.get('/api/playlist', (_req, res) => {
+    const wyyPath = path.join(__dirname, '..', '..', 'wyy.json');
+    try {
+      if (fs.existsSync(wyyPath)) {
+        const songs = JSON.parse(fs.readFileSync(wyyPath, 'utf-8'));
+        res.json({ songs, total: songs.length });
+      } else {
+        res.json({ songs: [], total: 0 });
+      }
+    } catch { res.json({ songs: [], total: 0 }); }
+  });
+
+  // Get playlist songs (basic info only, no URL resolution)
+  app.get('/api/playlist-resolved', async (_req, res) => {
+    const wyyPath = path.join(__dirname, '..', '..', 'wyy.json');
+    try {
+      const raw = JSON.parse(fs.readFileSync(wyyPath, 'utf-8'));
+      // Return songs with basic info — URLs resolved on demand via /api/song-url
+      const songs = raw.map((s: any, i: number) => ({
+        id: `pl_${i}_${s.name}`,
+        name: s.name,
+        artist: s.artist || '',
+        album: s.album || '',
+        duration: s.duration || 0,
+        fee: s.fee ?? 0,
+        cover: s.cover || null,
+        url: null, // will be resolved on play
+      }));
+      res.json({ songs, total: songs.length });
+    } catch (err) {
+      res.json({ songs: [], error: String(err) });
+    }
+  });
+
+  // Resolve more songs on demand
+  app.post('/api/resolve-batch', async (req, res) => {
+    const { songs } = req.body;
+    if (!songs?.length) return res.json({ songs: [] });
+
+    const resolved: any[] = [];
+    for (const s of songs.slice(0, 5)) {
+      try {
+        const searchRes = await musicService.search(`${s.name} ${s.artist}`.trim(), 1);
+        if (searchRes.songs.length > 0) {
+          const song = searchRes.songs[0];
+          const { url, isTrial } = await musicService.getSongUrl(song.id);
+          resolved.push({ ...song, url: url ? `/api/audio-proxy?url=${encodeURIComponent(url)}` : null, isTrial });
+        }
+      } catch { /* skip */ }
+    }
+    res.json({ songs: resolved });
+  });
+
+  // Search songs from Netease API
+  app.post('/api/search', async (req, res) => {
+    const { keyword, limit = 20 } = req.body;
+    if (!keyword) return res.status(400).json({ error: 'Missing keyword' });
+    try {
+      const result = await musicService.search(keyword, limit);
+      res.json(result);
+    } catch (err) {
+      res.json({ songs: [], error: String(err) });
+    }
+  });
+
+  // Search for a song and get its URL
+  app.post('/api/resolve-song', async (req, res) => {
+    const { name, artist } = req.body;
+    if (!name) return res.status(400).json({ error: 'Missing name' });
+    try {
+      const searchRes = await musicService.search(`${name} ${artist || ''}`.trim(), 3);
+      if (searchRes.songs.length > 0) {
+        const s = searchRes.songs[0];
+        const { url, isTrial } = await musicService.getSongUrl(s.id);
+        const proxyUrl = url ? `/api/audio-proxy?url=${encodeURIComponent(url)}` : null;
+        res.json({ song: { ...s, url: proxyUrl, isTrial } });
+      } else {
+        res.json({ song: null });
+      }
+    } catch (err) {
+      res.json({ song: null, error: String(err) });
+    }
+  });
+
+  // Get song URL by ID or by name+artist (with caching)
+  app.get('/api/song-url', async (req, res) => {
+    const { id, name, artist } = req.query as { id?: string; name?: string; artist?: string };
+    try {
+      let songId = id;
+      let cover: string | null = null;
+      // If no ID but have name, resolve from cache or search
+      if (!songId && name) {
+        // Search to get both songId and cover
+        const searchRes = await musicService.search(`${name} ${artist || ''}`.trim(), 1);
+        if (searchRes.songs.length > 0) {
+          songId = searchRes.songs[0].id;
+          cover = searchRes.songs[0].cover ?? null;
+        }
+      }
+      if (!songId) return res.json({ url: null, error: 'No song found' });
+
+      const { url, isTrial } = await musicService.getSongUrl(songId);
+      const proxyUrl = url ? `/api/audio-proxy?url=${encodeURIComponent(url)}` : null;
+      res.json({ url: proxyUrl, isTrial, id: songId, cover });
+    } catch (err) {
+      res.json({ url: null, error: String(err) });
+    }
+  });
+
+  // Pre-warm URL cache for multiple songs
+  app.post('/api/warmup', async (req, res) => {
+    const { songs } = req.body as { songs?: { name: string; artist: string }[] };
+    if (!songs?.length) return res.json({ ok: true, count: 0 });
+    // Fire and forget - warmup in background
+    let count = 0;
+    for (const s of songs.slice(0, 10)) {
+      try {
+        const songId = await musicService.resolveSongId(s.name, s.artist);
+        if (songId) { await musicService.warmupUrl(songId); count++; }
+      } catch { /* skip */ }
+    }
+    res.json({ ok: true, count });
+  });
+
+  // Get top comment for a song
+  app.get('/api/comment', async (req, res) => {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'Missing id' });
+    try {
+      const comment = await musicService.getTopComment(String(id));
+      res.json({ comment });
+    } catch (err) {
+      res.json({ comment: null, error: String(err) });
+    }
+  });
+
+  // Get lyrics
+  app.get('/api/lyrics', async (req, res) => {
+    const { id, name, artist } = req.query as { id?: string; name?: string; artist?: string };
+    try {
+      let songId = id;
+      if (!songId && name) {
+        songId = await musicService.resolveSongId(String(name), String(artist || '')) ?? undefined;
+      }
+      if (!songId) return res.json({ lyrics: [] });
+
+      const lyricUrl = new URL('/lyric', config.netease.apiBase);
+      lyricUrl.searchParams.set('id', songId);
+      if (config.netease.cookie) lyricUrl.searchParams.set('cookie', config.netease.cookie);
+      const lyricRes = await fetch(lyricUrl.toString(), { signal: AbortSignal.timeout(10_000) });
+      const lyricData = await lyricRes.json() as any;
+      const rawLyric = lyricData.lrc?.lyric || '';
+      if (!rawLyric) return res.json({ lyrics: [] });
+
+      // 解析LRC格式，返回结构化数据
+      const lrcLines: Array<{ time: number; text: string }> = [];
+      const regex = /\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)/g;
+      let match;
+      while ((match = regex.exec(rawLyric)) !== null) {
+        const minutes = parseInt(match[1]);
+        const seconds = parseInt(match[2]);
+        const ms = parseInt(match[3].padEnd(3, '0'));
+        const time = minutes * 60 + seconds + ms / 1000;
+        const text = match[4].trim();
+        if (text) lrcLines.push({ time, text });
+      }
+      lrcLines.sort((a, b) => a.time - b.time);
+
+      res.json({ lyrics: lrcLines, raw: rawLyric });
+    } catch (err) {
+      res.json({ lyrics: [], error: String(err) });
+    }
+  });
+
+  // Audio proxy (with SSRF protection)
   app.get('/api/audio-proxy', async (req, res) => {
     const audioUrl = req.query.url as string;
     if (!audioUrl) return res.status(400).json({ error: 'Missing url param' });
-
+    // SSRF protection: only allow specific domains
+    try {
+      const parsed = new URL(audioUrl);
+      const allowedHosts = ['music.163.com', 'music.126.net'];
+      if (!allowedHosts.some(h => parsed.hostname === h || parsed.hostname.endsWith('.' + h))) {
+        return res.status(403).json({ error: 'Domain not allowed' });
+      }
+    } catch {
+      return res.status(400).json({ error: 'Invalid URL' });
+    }
     try {
       const audioRes = await fetch(audioUrl, {
-        headers: {
-          'Referer': 'https://music.163.com/',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
+        headers: { 'Referer': 'https://music.163.com/', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        signal: AbortSignal.timeout(15_000),
       });
-
-      if (!audioRes.ok) {
-        return res.status(audioRes.status).json({ error: `Upstream error: ${audioRes.status}` });
-      }
-
+      if (!audioRes.ok) return res.status(audioRes.status).json({ error: `Upstream: ${audioRes.status}` });
       const contentType = audioRes.headers.get('content-type') ?? 'audio/mpeg';
       res.setHeader('Content-Type', contentType);
       res.setHeader('Cache-Control', 'public, max-age=3600');
-
-      // Stream the audio via pipe
       const reader = audioRes.body?.getReader();
       if (!reader) return res.status(500).json({ error: 'No body' });
-
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -69,45 +244,26 @@ export function createApp() {
     }
   });
 
-  // Static files
-  const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');
-  app.use(express.static(clientDist));
-  // TTS cache
-  app.use('/tts', express.static(path.join(__dirname, '..', 'cache', 'tts')));
-
-  // API routes
-  app.use('/api/chat', chatRouter);
+  // ===== State & Prefs =====
   app.use('/api', stateRouter);
-  app.use('/api/taste', tasteRouter);
-  app.use('/api/plan', planRouter);
   app.use('/api/prefs', prefsRouter);
 
-  // SPA fallback (after API routes)
+  // ===== SPA fallback =====
   app.get('*', (_req, res, next) => {
     if (_req.path.startsWith('/api')) return next();
     const indexPath = path.join(clientDist, 'index.html');
-    if (fs.existsSync(indexPath)) {
-      res.sendFile(indexPath);
-    } else {
-      next();
-    }
+    if (fs.existsSync(indexPath)) res.sendFile(indexPath);
+    else next();
   });
 
-  // Error handling
   app.use(notFound);
   app.use(errorHandler);
 
-  // Socket.IO
+  // ===== Socket.IO =====
   io.on('connection', (socket) => {
     logger.info(`客户端连接 (${io.engine.clientsCount} 在线)`);
-
-    // Send initial state
     const state = playerService.getState();
-    socket.emit('init', {
-      current: state.current,
-      prefs: getStore().getAllPrefs(),
-    });
-
+    socket.emit('init', { current: state.current, prefs: getStore().getAllPrefs() });
     socket.on('player_action', (msg) => {
       switch (msg.action) {
         case 'next': playerService.next(); break;
@@ -117,21 +273,12 @@ export function createApp() {
         case 'resume': playerService.resume(); break;
         case 'volume': playerService.setVolume(Number(msg.value) / 100); break;
       }
-      // Broadcast updated state to all clients
       io.emit('state_update', playerService.getState());
     });
-
-    socket.on('disconnect', () => {
-      logger.info(`客户端断开 (${io.engine.clientsCount} 在线)`);
-    });
+    socket.on('disconnect', () => { logger.info(`客户端断开 (${io.engine.clientsCount} 在线)`); });
   });
 
-  // Broadcast helper
-  function broadcast(data: Record<string, unknown>) {
-    io.emit('server_event', data);
-  }
-
-  // Start scheduler
+  function broadcast(data: Record<string, unknown>) { io.emit('server_event', data); }
   schedulerService.start(broadcast);
 
   return { app, server, io };

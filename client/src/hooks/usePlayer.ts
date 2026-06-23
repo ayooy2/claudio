@@ -10,6 +10,7 @@ export interface SongInfo {
   pop?: number;
   url: string | null;
   isTrial?: boolean;
+  cover?: string | null;
 }
 
 export function usePlayer() {
@@ -18,44 +19,70 @@ export function usePlayer() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolumeState] = useState(0.6);
+  const [volume, setVolumeState] = useState(() => {
+    try {
+      const s = localStorage.getItem('claudio_volume');
+      if (!s) return 0.6;
+      const parsed = JSON.parse(s);
+      return typeof parsed === 'number' ? parsed : 0.6;
+    } catch { return 0.6; }
+  });
+  const [isMuted, setIsMuted] = useState(false);
+  const [volumeBeforeMute, setVolumeBeforeMute] = useState(volume);
 
-  const play = useCallback((song: SongInfo) => {
+  const play = useCallback(async (song: SongInfo) => {
     setCurrent(song);
     setCurrentTime(0);
     setDuration(song.duration || 0);
 
-    if (audioRef.current && song.url) {
-      audioRef.current.src = song.url;
+    // If no URL, fetch it first
+    let url = song.url;
+    if (!url) {
+      try {
+        const res = await fetch(`/api/song-url?name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(song.artist)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        url = data.url;
+        if (url) {
+          setCurrent(prev => prev ? { ...prev, url, id: data.id || prev.id, cover: data.cover || prev.cover } : prev);
+        }
+      } catch (e) {
+        console.warn('获取URL失败:', e);
+        setIsPlaying(false);
+        return;
+      }
+    }
+
+    setIsPlaying(true);
+    if (audioRef.current && url) {
+      audioRef.current.src = url;
       audioRef.current.load();
-      audioRef.current.play()
-        .then(() => setIsPlaying(true))
-        .catch((e) => {
-          console.warn('播放失败:', e.message);
-          setIsPlaying(false);
-        });
+      audioRef.current.play().catch((e) => {
+        console.warn('播放失败:', e.message);
+        setIsPlaying(false);
+      });
     }
   }, []);
 
+  // Use functional update to avoid stale isPlaying closure
   const togglePlay = useCallback(() => {
     if (!audioRef.current) return;
-    if (isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      audioRef.current.play().catch(() => {});
-      setIsPlaying(true);
-    }
-  }, [isPlaying]);
-
-  const [isMuted, setIsMuted] = useState(false);
-  const [volumeBeforeMute, setVolumeBeforeMute] = useState(0.6);
+    setIsPlaying(prev => {
+      if (prev) {
+        audioRef.current!.pause();
+      } else {
+        audioRef.current!.play().catch(() => {});
+      }
+      return !prev;
+    });
+  }, []);
 
   const setVolume = useCallback((v: number) => {
     const val = Math.max(0, Math.min(1, v));
     setVolumeState(val);
     if (audioRef.current) audioRef.current.volume = val;
     setIsMuted(false);
+    try { localStorage.setItem('claudio_volume', JSON.stringify(val)); } catch {}
   }, []);
 
   const toggleMute = useCallback(() => {
@@ -78,6 +105,9 @@ export function usePlayer() {
     }
   }, []);
 
-  return { audioRef, current, setCurrent, isPlaying, setIsPlaying, currentTime, setCurrentTime,
-    duration, setDuration, volume, isMuted, play, togglePlay, setVolume, toggleMute, seek };
+  return {
+    audioRef, current, setCurrent, isPlaying, setIsPlaying,
+    currentTime, setCurrentTime, duration, setDuration,
+    volume, isMuted, play, togglePlay, setVolume, toggleMute, seek,
+  };
 }

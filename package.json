@@ -5,7 +5,8 @@
   "description": "Claudio — 个人AI音乐电台",
   "workspaces": ["server", "client"],
   "scripts": {
-    "dev": "concurrently \"npm run dev -w server\" \"npm run dev -w client\"",
+    "dev": "concurrently -n api,server,client -c cyan,green,yellow \"npm run dev:api\" \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:api": "cd netease-api && npm start",
     "dev:server": "npm run dev -w server",
     "dev:client": "npm run dev -w client",
     "build": "npm run build -w server && npm run build -w client",

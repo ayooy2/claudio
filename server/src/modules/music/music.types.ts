@@ -6,6 +6,7 @@ export interface SongInfo {
   duration: number;
   fee: number;        // 0=free, 1=VIP, 8=restricted
   pop?: number;       // popularity (0-100), from cloudsearch
+  cover?: string | null;  // album cover URL
 }
 
 export interface ResolvedSong extends SongInfo {

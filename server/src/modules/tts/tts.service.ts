@@ -11,15 +11,16 @@ const log = logger.child('tts');
 
 if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
 
-const TOKEN_URL = 'https://nls-meta.cn-shanghai.aliyuncs.com/';
 const TTS_URL = 'https://nls-gateway-cn-shanghai.aliyuncs.com/stream/v1/tts';
+const TOKEN_URL = 'https://nls-meta.cn-shanghai.aliyuncs.com/';
 
 let cachedToken = { token: '', expires: 0 };
 
 async function getToken(): Promise<string> {
   if (Date.now() < cachedToken.expires) return cachedToken.token;
 
-  const RPCClient = (await import('@alicloud/pop-core')).RPCClient;
+  const popCore = await import('@alicloud/pop-core');
+  const RPCClient = (popCore as any).default ?? popCore;
   const client = new RPCClient({
     accessKeyId: config.aliTts.accessKeyId,
     accessKeySecret: config.aliTts.accessKeySecret,
@@ -58,10 +59,7 @@ export class TtsService {
         voice: 'xiaoyun',
       });
 
-      const res = await fetch(`${TTS_URL}?${params}`, {
-        signal: AbortSignal.timeout(20_000),
-      });
-
+      const res = await fetch(`${TTS_URL}?${params}`, { signal: AbortSignal.timeout(20_000) });
       if (!res.ok) {
         const err = await res.text().catch(() => '');
         throw new Error(`阿里云 TTS ${res.status}: ${err.slice(0, 200)}`);

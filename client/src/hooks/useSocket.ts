@@ -24,10 +24,15 @@ export function useSocket() {
   return { socket: socket.current, connected };
 }
 
+// Use ref for handler to avoid re-binding on every render
 export function useSocketEvent<T>(socket: Socket | null, event: string, handler: (data: T) => void) {
+  const handlerRef = useRef(handler);
+  handlerRef.current = handler;
+
   useEffect(() => {
     if (!socket) return;
-    socket.on(event, handler);
-    return () => { socket.off(event, handler); };
-  }, [socket, event, handler]);
+    const fn = (data: T) => handlerRef.current(data);
+    socket.on(event, fn);
+    return () => { socket.off(event, fn); };
+  }, [socket, event]);
 }

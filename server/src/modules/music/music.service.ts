@@ -43,6 +43,7 @@ class RateLimiter {
 const searchCache = new MemoryCache<SongInfo[]>();
 const urlCache = new MemoryCache<UrlResult & { isTrial: boolean }>();
 const commentCache = new MemoryCache<TopComment>();
+const songIdCache = new MemoryCache<string>(); // name+artist → songId
 
 // ====== Rate limiters ======
 const searchLimiter = new RateLimiter();
@@ -52,10 +53,11 @@ const urlLimiter = new RateLimiter();
 const SEARCH_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 const URL_CACHE_TTL = 60 * 60 * 1000;         // 1 hour (URLs expire)
 const COMMENT_CACHE_TTL = 12 * 60 * 60 * 1000; // 12 hours
+const SONGID_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 // Rate limit intervals
-const SEARCH_INTERVAL = 2000;  // 2s between searches
-const URL_INTERVAL = 1000;     // 1s between URL fetches
+const SEARCH_INTERVAL = 1500;  // 1.5s between searches
+const URL_INTERVAL = 700;      // 0.7s between URL fetches
 
 // ====== Types ======
 export interface TopComment {
@@ -126,7 +128,7 @@ export class MusicService {
       url.searchParams.set('limit', String(Math.max(limit, 20))); // fetch at least 20 for sorting
       if (config.netease.cookie) url.searchParams.set('cookie', config.netease.cookie);
 
-      const res = await fetch(url.toString());
+      const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10_000) });
       const data = await res.json() as any;
       const allSongs = (data.result?.songs ?? [])
         .map((s: any) => ({
@@ -137,9 +139,10 @@ export class MusicService {
           duration: Math.floor((s.duration ?? s.dt ?? 0) / 1000),
           fee: s.fee ?? 1,
           pop: s.pop ?? 0,
+          cover: s.al?.picUrl ?? s.album?.picUrl ?? null,
         }));
       // Sort by popularity descending, then VIP songs first within same pop
-      const sorted = allSongs.sort((a, b) => {
+      const sorted = allSongs.sort((a: any, b: any) => {
         if (b.pop !== a.pop) return b.pop - a.pop;
         return b.fee - a.fee;
       });
@@ -152,6 +155,27 @@ export class MusicService {
       log.warn('网易云搜索失败，降级为 mock');
       return this.mockSearch(keyword, limit);
     }
+  }
+
+  // Resolve songId from name+artist, with caching
+  async resolveSongId(name: string, artist: string): Promise<string | null> {
+    const cacheKey = `sid:${name}:${artist}`;
+    const cached = songIdCache.get(cacheKey);
+    if (cached) return cached;
+
+    const searchRes = await this.search(`${name} ${artist}`.trim(), 1);
+    if (searchRes.songs.length > 0) {
+      const id = searchRes.songs[0].id;
+      songIdCache.set(cacheKey, id, SONGID_CACHE_TTL);
+      return id;
+    }
+    return null;
+  }
+
+  // Pre-warm URL cache for a song (fire-and-forget)
+  async warmupUrl(songId: string): Promise<void> {
+    if (urlCache.get(songId)) return; // already cached
+    await this.getSongUrl(songId);
   }
 
   async getSongUrl(songId: string): Promise<UrlResult & { isTrial: boolean }> {
@@ -174,7 +198,7 @@ export class MusicService {
       url.searchParams.set('id', songId);
       if (config.netease.cookie) url.searchParams.set('cookie', config.netease.cookie);
 
-      const res = await fetch(url.toString());
+      const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10_000) });
       const data = await res.json() as any;
       const song = data.data?.[0] ?? {};
       const result: UrlResult & { isTrial: boolean } = {

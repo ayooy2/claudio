@@ -1,4 +1,15 @@
 services:
+  netease-api:
+    image: node:20-slim
+    container_name: netease-api
+    working_dir: /app
+    volumes:
+      - ../netease-api:/app
+    command: npx NeteaseCloudMusicApi -p 3000
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
   claudio:
     build:
       context: ..
@@ -9,10 +20,13 @@ services:
     volumes:
       - ../server/data:/app/server/data
     restart: unless-stopped
+    depends_on:
+      - netease-api
     environment:
       - NODE_ENV=production
       - PORT=8080
-      - USE_MOCK_MUSIC=true
+      - NETEASE_API_BASE=http://netease-api:3000
+      - USE_MOCK_MUSIC=false
       - USE_MOCK_TTS=true
       - USE_MOCK_WEATHER=true
       - USE_MOCK_CALENDAR=true
