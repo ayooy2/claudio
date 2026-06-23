@@ -42,23 +42,30 @@ export function usePlayer() {
     setDuration(song.duration || 0);
     setPlayError(null);
 
-    // If no URL, fetch it first (with one retry on failure)
+    // Abort any in-flight fetch
+    const abortCtrl = new AbortController();
+    const timeoutId = setTimeout(() => abortCtrl.abort(), 15000);
+
     let url = song.url;
     if (!url) {
       setIsLoading(true);
       const maxAttempts = 2;
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
         try {
-          const res = await fetch(`/api/song-url?name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(song.artist)}`);
+          const res = await fetch(
+            `/api/song-url?name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(song.artist)}`,
+            { signal: abortCtrl.signal }
+          );
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const data = await res.json();
           url = data.url;
           if (url) {
             setCurrent(prev => prev ? { ...prev, url, id: data.id || prev.id, cover: data.cover || prev.cover } : prev);
           }
-          break; // success
-        } catch (e) {
-          console.warn('获取URL失败:', e);
+          break;
+        } catch (e: any) {
+          if (e?.name === 'AbortError') break;
+          console.warn(`获取URL失败 (attempt ${attempt + 1}):`, e);
           if (attempt < maxAttempts - 1) {
             await new Promise(r => setTimeout(r, 1000));
           }
@@ -67,28 +74,58 @@ export function usePlayer() {
       setIsLoading(false);
     }
 
+    clearTimeout(timeoutId);
+
     if (!url) {
       setIsPlaying(false);
       setPlayError('获取歌曲链接失败');
       return;
     }
 
-    setIsPlaying(true);
-    if (audioRef.current) {
-      audioRef.current.src = url;
-      audioRef.current.volume = volumeRef.current;
-      audioRef.current.load();
-      try {
-        await audioRef.current.play();
-        setPlayError(null);
-      } catch (e: any) {
-        // AbortError is expected when a new play interrupts an old one
-        if (e?.name !== 'AbortError') {
-          console.warn('播放失败:', e?.message);
-          setIsPlaying(false);
-          setPlayError('播放失败: ' + (e?.message || '未知错误'));
-        }
+    // Play with audio element
+    const audio = audioRef.current;
+    if (!audio) {
+      setPlayError('播放器未就绪');
+      return;
+    }
+
+    // Stop current playback first
+    try { audio.pause(); } catch {}
+
+    audio.src = url;
+    audio.volume = volumeRef.current;
+    audio.load();
+
+    // Wait for canplay before calling play()
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const onCanPlay = () => { cleanup(); resolve(); };
+        const onErr = () => {
+          cleanup();
+          const err = audio.error;
+          reject(new Error(err ? `媒体错误 code=${err.code}` : '加载失败'));
+        };
+        const cleanup = () => {
+          audio.removeEventListener('canplay', onCanPlay);
+          audio.removeEventListener('error', onErr);
+        };
+        audio.addEventListener('canplay', onCanPlay, { once: true });
+        audio.addEventListener('error', onErr, { once: true });
+        // Timeout for loading
+        setTimeout(() => { cleanup(); reject(new Error('加载超时')); }, 10000);
+      });
+
+      await audio.play();
+      setIsPlaying(true);
+      setPlayError(null);
+    } catch (e: any) {
+      if (e?.name === 'AbortError') {
+        // New play interrupted this one — don't show error
+        return;
       }
+      console.warn('播放失败:', e?.message);
+      setIsPlaying(false);
+      setPlayError(e?.message || '播放失败');
     }
   }, []);
 
@@ -96,15 +133,14 @@ export function usePlayer() {
 
   // Use functional update to avoid stale isPlaying closure
   const togglePlay = useCallback(() => {
-    if (!audioRef.current) return;
-    setIsPlaying(prev => {
-      if (prev) {
-        audioRef.current!.pause();
-      } else {
-        audioRef.current!.play().catch(() => {});
-      }
-      return !prev;
-    });
+    const audio = audioRef.current;
+    if (!audio || !audio.src) return;
+    if (audio.paused) {
+      audio.play().then(() => setIsPlaying(true)).catch(() => {});
+    } else {
+      audio.pause();
+      setIsPlaying(false);
+    }
   }, []);
 
   const setVolume = useCallback((v: number) => {
@@ -141,7 +177,7 @@ export function usePlayer() {
   return {
     audioRef, current, setCurrent, isPlaying, setIsPlaying, isLoading,
     currentTime, setCurrentTime, duration, setDuration,
-    volume, isMuted, play, playRef, togglePlay, setVolume, toggleMute, seek,
+    volume, volumeRef, isMuted, play, playRef, togglePlay, setVolume, toggleMute, seek,
     playError, clearError: () => setPlayError(null),
   };
 }

@@ -221,8 +221,8 @@ const Particles = memo(function Particles({ scene }: { scene: Scene }) {
   );
 });
 
-const QueueDrawer = memo(function QueueDrawer({ queue, queueIdx, show, onClose, onSelect, accent, text, textDim }: {
-  queue: SongInfo[]; queueIdx: number; show: boolean;
+const QueueDrawer = memo(function QueueDrawer({ queue, queueIdx, isPlaying, show, onClose, onSelect, accent, text, textDim }: {
+  queue: SongInfo[]; queueIdx: number; isPlaying: boolean; show: boolean;
   onClose: () => void; onSelect: (i: number) => void;
   accent: string; text: string; textDim: string;
 }) {
@@ -238,20 +238,37 @@ const QueueDrawer = memo(function QueueDrawer({ queue, queueIdx, show, onClose, 
         <button onClick={onClose} style={{ background: 'none', border: 'none', color: textDim, fontSize: 16, cursor: 'pointer' }}>✕</button>
       </div>
       <div style={{ flex: 1, overflow: 'auto' }}>
-        {queue.map((s, i) => (
-          <div key={i} onClick={() => onSelect(i)} style={{
-            display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', cursor: 'pointer',
-            background: i === queueIdx ? `${accent}15` : 'transparent',
-            borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.2s',
-          }}>
-            <span style={{ width: 18, fontSize: 10, color: i === queueIdx ? accent : 'rgba(255,255,255,0.2)', textAlign: 'right', fontWeight: 600 }}>{String(i+1).padStart(2,'0')}</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, color: i === queueIdx ? text : textDim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: i === queueIdx ? 500 : 300 }}>{s.name}</div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)' }}>{s.artist}</div>
+        {queue.map((s, i) => {
+          const isCurrent = i === queueIdx;
+          return (
+            <div key={i} onClick={() => onSelect(i)} style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', cursor: 'pointer',
+              background: isCurrent ? `${accent}15` : 'transparent',
+              borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.2s',
+            }}>
+              <span style={{ width: 18, fontSize: 10, color: isCurrent ? accent : 'rgba(255,255,255,0.2)', textAlign: 'right', fontWeight: 600 }}>{String(i+1).padStart(2,'0')}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, color: isCurrent ? text : textDim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: isCurrent ? 500 : 300 }}>{s.name}</div>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)' }}>{s.artist}</div>
+              </div>
+              {isCurrent && (
+                isPlaying ? (
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 14 }}>
+                    {[0, 1, 2].map(j => (
+                      <div key={j} style={{
+                        width: 3, borderRadius: 1, background: accent,
+                        animation: `viz-bar 0.6s ease-in-out ${j * 0.15}s infinite alternate`,
+                        height: 6 + (j % 2) * 4,
+                      }} />
+                    ))}
+                  </div>
+                ) : (
+                  <span style={{ color: accent, fontSize: 10 }}>❚❚</span>
+                )
+              )}
             </div>
-            {i === queueIdx && <span style={{ color: accent, fontSize: 12 }}>▶</span>}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -313,8 +330,8 @@ export default function App() {
   const [showCover, setShowCover] = useState(() => loadState('claudio_show_cover', true));
   const [showTime, setShowTime] = useState(() => loadState('claudio_show_time', true));
 
-  const { audioRef, current, isPlaying, isLoading, currentTime, duration, volume, isMuted,
-    play, playRef, togglePlay, toggleMute, setVolume, seek, setCurrentTime, setDuration, setIsPlaying } = usePlayer();
+  const { audioRef, current, isPlaying, isLoading, currentTime, duration, volume, volumeRef, isMuted,
+    play, playRef, togglePlay, toggleMute, setVolume, seek, setCurrentTime, setDuration, setIsPlaying, playError, clearError } = usePlayer();
   const { socket } = useSocket();
 
   // Refs for latest state (avoid stale closures)
@@ -443,14 +460,20 @@ export default function App() {
     else setScene('neon');
   }, []);
 
-  // Audio setup - use ref for onended to avoid stale closure
+  // Audio setup — 同步播放状态、错误处理、音量
   const attachAudio = useCallback((el: HTMLAudioElement | null) => {
     audioRef.current = el;
     if (!el) return;
     el.ontimeupdate = () => setCurrentTime(el.currentTime);
     el.ondurationchange = () => setDuration(el.duration || 0);
-    el.volume = volume;
-  }, [volume]);
+    el.onplay = () => setIsPlaying(true);
+    el.onpause = () => setIsPlaying(false);
+    el.onerror = () => {
+      console.warn('Audio error:', el.error);
+      setIsPlaying(false);
+    };
+    el.volume = volumeRef.current;
+  }, []);
 
   // Separate effect for onended (uses refs for latest state)
   useEffect(() => {
@@ -463,8 +486,9 @@ export default function App() {
         const n = (idx + 1) % q.length;
         setQueueIdx(n);
         setCurrentTime(0);
-        setIsPlaying(true);
         play(q[n]);
+      } else {
+        setIsPlaying(false);
       }
     };
   }, []);
@@ -1031,7 +1055,7 @@ export default function App() {
         </div>
       </div>
 
-      <QueueDrawer queue={queue} queueIdx={queueIdx} show={showQueue}
+      <QueueDrawer queue={queue} queueIdx={queueIdx} isPlaying={isPlaying} show={showQueue}
         onClose={() => setShowQueue(false)} onSelect={handleSelectSong}
         accent={sc.accent} text={sc.text} textDim={sc.textDim} />
 
@@ -1283,6 +1307,20 @@ export default function App() {
             </div>
           </div>
         </>
+      )}
+
+      {/* 播放错误提示 */}
+      {playError && (
+        <div onClick={clearError} style={{
+          position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(220,38,38,0.9)', backdropFilter: 'blur(8px)',
+          padding: '8px 20px', borderRadius: 20, zIndex: 200,
+          color: '#fff', fontSize: 12, cursor: 'pointer',
+          animation: 'fadeIn 0.3s ease',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+        }}>
+          ⚠ {playError}（点击关闭）
+        </div>
       )}
 
       <audio ref={attachAudio} preload="auto" />
