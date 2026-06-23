@@ -1,7 +1,8 @@
 type Level = 'debug' | 'info' | 'warn' | 'error';
 
 const LEVELS: Record<Level, number> = { debug: 0, info: 1, warn: 2, error: 3 };
-const currentLevel: Level = process.env.LOG_LEVEL as Level ?? 'info';
+const envLevel = process.env.LOG_LEVEL ?? 'info';
+const currentLevel: Level = envLevel in LEVELS ? (envLevel as Level) : 'info';
 
 function log(level: Level, module: string, message: string, data?: unknown) {
   if (LEVELS[level] < LEVELS[currentLevel]) return;

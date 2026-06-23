@@ -30,8 +30,6 @@ audio { display: none; }
 @keyframes viz-bar { 0% { height: 4px; opacity: 0.4; } 100% { height: 22px; opacity: 1; } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
 
 /* Force full viewport */
 #root, html, body {
