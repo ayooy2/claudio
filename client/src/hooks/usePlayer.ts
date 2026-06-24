@@ -112,15 +112,15 @@ export function usePlayer() {
         };
         audio.addEventListener('canplay', onCanPlay, { once: true });
         audio.addEventListener('error', onErr, { once: true });
-        // 如果同一首歌已经可以播放，直接 resolve
-        if (audio.src === url && audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+        // 设置 src 触发加载
+        audio.src = url;
+        audio.volume = volumeRef.current;
+        // 如果同一首歌已经可以播放，直接 resolve（在 src 赋值后检查）
+        if (audio.currentSrc === url && audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
           cleanup(); resolve(); return;
         }
         // 超时
         const timer = setTimeout(() => { cleanup(); reject(new Error('加载超时（10s）')); }, 10000);
-        // 设置 src 触发加载
-        audio.src = url;
-        audio.volume = volumeRef.current;
       });
 
       await audio.play();
@@ -130,6 +130,34 @@ export function usePlayer() {
       if (e?.name === 'AbortError') {
         // 新播放中断了旧播放，不算错误
         return;
+      }
+      // code=4 且有 URL 时，可能是 URL 过期，尝试强制重新获取
+      if (e?.message?.includes('code=4') && song.url) {
+        console.warn('媒体错误 code=4，尝试重新获取 URL...');
+        try {
+          const res = await fetch(`/api/song-url?id=${song.id}&force=true`);
+          const data = await res.json();
+          if (data.url) {
+            // 更新 song 的 url 和 queue 中的引用
+            song.url = data.url;
+            const a = audioRef.current!;
+            a.src = data.url;
+            a.volume = volumeRef.current;
+            await new Promise<void>((resolve, reject) => {
+              const onOk = () => { a.removeEventListener('error', onErr2); resolve(); };
+              const onErr2 = () => { a.removeEventListener('canplay', onOk); reject(new Error('重试仍失败')); };
+              a.addEventListener('canplay', onOk, { once: true });
+              a.addEventListener('error', onErr2, { once: true });
+              setTimeout(() => { a.removeEventListener('canplay', onOk); a.removeEventListener('error', onErr2); reject(new Error('重试超时')); }, 10000);
+            });
+            await a.play();
+            setIsPlaying(true);
+            setPlayError(null);
+            return;
+          }
+        } catch (retryErr) {
+          console.warn('重试失败:', retryErr);
+        }
       }
       console.warn('播放失败:', e?.message);
       setIsPlaying(false);

@@ -199,16 +199,20 @@ export class MusicService {
     await this.getSongUrl(songId);
   }
 
-  async getSongUrl(songId: string): Promise<UrlResult & { isTrial: boolean }> {
+  async getSongUrl(songId: string, force = false): Promise<UrlResult & { isTrial: boolean }> {
     if (config.mock.music) {
       return { success: true, mock: true, url: `${MOCK_AUDIO_BASE}${songId}.mp3`, br: 320000, isTrial: false };
     }
 
-    // Cache check (song URLs expire faster)
-    const cached = urlCache.get(songId);
-    if (cached) {
-      log.debug(`URL 命中缓存: ${songId}`);
-      return cached;
+    // Cache check (song URLs expire faster) — skip if force=true
+    if (!force) {
+      const cached = urlCache.get(songId);
+      if (cached) {
+        log.debug(`URL 命中缓存: ${songId}`);
+        return cached;
+      }
+    } else {
+      log.debug(`URL 强制刷新: ${songId}`);
     }
 
     // Rate limit

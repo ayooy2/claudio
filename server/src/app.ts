@@ -120,7 +120,7 @@ export function createApp() {
 
   // Get song URL by ID or by name+artist (with caching)
   app.get('/api/song-url', async (req, res) => {
-    const { id, name, artist } = req.query as { id?: string; name?: string; artist?: string };
+    const { id, name, artist, force } = req.query as { id?: string; name?: string; artist?: string; force?: string };
     try {
       let songId = id;
       let cover: string | null = null;
@@ -135,7 +135,7 @@ export function createApp() {
       }
       if (!songId) return res.json({ url: null, error: 'No song found' });
 
-      const { url, isTrial } = await musicService.getSongUrl(songId);
+      const { url, isTrial } = await musicService.getSongUrl(songId, force === 'true');
       const proxyUrl = url ? `/api/audio-proxy?url=${encodeURIComponent(url)}` : null;
       res.json({ url: proxyUrl, isTrial, id: songId, cover });
     } catch (err) {
@@ -208,7 +208,7 @@ export function createApp() {
     }
   });
 
-  // Audio proxy (with SSRF protection)
+  // Audio proxy (with SSRF protection + Range support)
   app.get('/api/audio-proxy', async (req, res) => {
     const audioUrl = req.query.url as string;
     if (!audioUrl) return res.status(400).json({ error: 'Missing url param' });
@@ -231,59 +231,95 @@ export function createApp() {
       return res.status(400).json({ error: 'Invalid URL' });
     }
     try {
+      // 构建上游请求头，透传 Range
+      const upstreamHeaders: Record<string, string> = {
+        'Referer': 'https://music.163.com/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      };
+      const rangeHeader = req.headers.range;
+      if (rangeHeader) upstreamHeaders['Range'] = rangeHeader;
+
       const audioRes = await fetch(audioUrl, {
-        headers: { 'Referer': 'https://music.163.com/', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        headers: upstreamHeaders,
         signal: AbortSignal.timeout(15_000),
       });
-      if (!audioRes.ok) return res.status(audioRes.status).json({ error: `Upstream: ${audioRes.status}` });
+      // 上游可能返回 206 或 200
+      if (!audioRes.ok && audioRes.status !== 206) {
+        return res.status(audioRes.status).json({ error: `Upstream: ${audioRes.status}` });
+      }
+
       // 修正 Content-Type：音频文件不应带 charset，且确保是浏览器支持的格式
       let contentType = audioRes.headers.get('content-type') ?? 'audio/mpeg';
-      // 移除 charset（音频流不需要）
       contentType = contentType.replace(/;\s*charset=[^;]*/i, '');
-      // 如果上游返回 generic octet-stream，从 URL 推断类型
-      if (contentType === 'application/octet-stream' || contentType === 'application/json') {
+      // 拦截非音频 Content-Type（错误页面、JSON 错误等）
+      if (['application/json', 'text/html', 'text/plain'].some(t => contentType.startsWith(t))) {
         const ext = audioUrl.split('?')[0].split('.').pop()?.toLowerCase();
         const extMap: Record<string, string> = { mp3: 'audio/mpeg', flac: 'audio/flac', aac: 'audio/aac', m4a: 'audio/mp4', ogg: 'audio/ogg', wav: 'audio/wav' };
         contentType = extMap[ext || ''] || 'audio/mpeg';
       }
+      // 如果上游返回 generic octet-stream，从 URL 推断类型
+      if (contentType === 'application/octet-stream') {
+        const ext = audioUrl.split('?')[0].split('.').pop()?.toLowerCase();
+        const extMap: Record<string, string> = { mp3: 'audio/mpeg', flac: 'audio/flac', aac: 'audio/aac', m4a: 'audio/mp4', ogg: 'audio/ogg', wav: 'audio/wav' };
+        contentType = extMap[ext || ''] || 'audio/mpeg';
+      }
+
+      // 缓冲第一个 chunk 做 magic byte 验证，通过后再写响应头
+      const reader = audioRes.body?.getReader();
+      if (!reader) return res.status(502).json({ error: 'No response body' });
+
+      const firstChunk = await reader.read();
+      if (firstChunk.done || !firstChunk.value || firstChunk.value.length < 12) {
+        return res.status(502).json({ error: 'Empty or too small response from upstream' });
+      }
+
+      const magic = Buffer.from(firstChunk.value.slice(0, 12));
+      const isAudio =
+        (magic[0] === 0xFF && (magic[1] & 0xE0) === 0xE0) || // MP3 sync word
+        magic.toString('ascii', 0, 3) === 'ID3' ||            // MP3 ID3 tag
+        magic.toString('ascii', 0, 4) === 'fLaC' ||           // FLAC
+        magic.toString('ascii', 0, 4) === 'OggS' ||           // OGG
+        magic.toString('ascii', 4, 8) === 'ftyp' ||           // M4A/AAC
+        magic.toString('ascii', 0, 4) === 'RIFF';             // WAV
+      if (!isAudio) {
+        console.warn('音频代理：上游返回非音频数据，前12字节:', magic.toString('hex'));
+        return res.status(502).json({ error: 'Upstream returned non-audio data' });
+      }
+
+      // 验证通过，设置响应头
+      const isRangeResponse = audioRes.status === 206;
+      res.status(isRangeResponse ? 206 : 200);
       res.setHeader('Content-Type', contentType);
       res.setHeader('Accept-Ranges', 'bytes');
       res.setHeader('Cache-Control', 'public, max-age=3600');
-      // 传递上游 Content-Length（浏览器可据此显示进度）
+      // 透传上游 Content-Length 和 Content-Range
       const contentLen = audioRes.headers.get('content-length');
       if (contentLen) res.setHeader('Content-Length', contentLen);
-      const reader = audioRes.body?.getReader();
-      if (!reader) return res.status(500).json({ error: 'No body' });
-      // 流式传输，同时检查前几个字节是否是有效音频
-      let bytesWritten = 0;
-      let headerChecked = false;
+      const contentRange = audioRes.headers.get('content-range');
+      if (contentRange) res.setHeader('Content-Range', contentRange);
+
+      // 写第一个 chunk 并继续流式传输
+      res.write(Buffer.from(firstChunk.value));
+      let bytesWritten = firstChunk.value.length;
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        if (!headerChecked && value.length > 12) {
-          headerChecked = true;
-          const magic = Buffer.from(value.slice(0, 12));
-          const isAudio =
-            (magic[0] === 0xFF && (magic[1] & 0xE0) === 0xE0) || // MP3 sync word
-            magic.toString('ascii', 0, 3) === 'ID3' ||            // MP3 ID3 tag
-            magic.toString('ascii', 0, 4) === 'fLaC' ||           // FLAC
-            magic.toString('ascii', 0, 4) === 'OggS' ||           // OGG
-            magic.toString('ascii', 4, 8) === 'ftyp';             // M4A/AAC
-          if (!isAudio) {
-            console.warn('音频代理：上游返回非音频数据，前12字节:', magic.toString('hex'));
-            res.status(502).json({ error: 'Upstream returned non-audio data' });
-            return;
-          }
-        }
+        if (res.destroyed) break; // 客户端断开连接
         res.write(Buffer.from(value));
         bytesWritten += value.length;
       }
-      if (bytesWritten < 1024) {
+      if (!isRangeResponse && bytesWritten < 1024) {
         console.warn(`音频代理：响应体过小 (${bytesWritten} bytes)，可能无效`);
       }
       res.end();
     } catch (err) {
-      res.status(502).json({ error: 'Audio proxy error' });
+      if (!res.headersSent) {
+        res.status(502).json({ error: 'Audio proxy error' });
+      } else {
+        // 响应头已发送，只能结束响应
+        console.error('音频代理：流式传输中断', err);
+        res.end();
+      }
     }
   });
 

@@ -488,7 +488,10 @@ export default function App() {
         const n = (idx + 1) % q.length;
         setQueueIdx(n);
         setCurrentTime(0);
-        play(q[n]);
+        play(q[n]).catch(e => {
+          console.warn('自动播放下一首失败:', e?.message);
+          setIsPlaying(false);
+        });
       } else {
         setIsPlaying(false);
       }
