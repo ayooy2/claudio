@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claudio 项目进度</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --text-dim: #8b949e;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --purple: #bc8cff;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 24px;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtitle { color: var(--text-dim); margin-bottom: 32px; font-size: 14px; }
+    .section { margin-bottom: 32px; }
+    .section-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title .icon { font-size: 20px; }
+    .timeline { position: relative; padding-left: 24px; }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 7px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--border);
+    }
+    .entry {
+      position: relative;
+      margin-bottom: 20px;
+      padding: 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .entry::before {
+      content: '';
+      position: absolute;
+      left: -21px;
+      top: 20px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 2px solid var(--accent);
+      background: var(--bg);
+    }
+    .entry.fix::before { border-color: var(--red); }
+    .entry.feat::before { border-color: var(--green); }
+    .entry.refactor::before { border-color: var(--yellow); }
+    .entry-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+      gap: 12px;
+    }
+    .entry-title { font-weight: 600; font-size: 15px; }
+    .entry-date { color: var(--text-dim); font-size: 12px; white-space: nowrap; }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .tag-fix { background: rgba(248,81,73,0.15); color: var(--red); }
+    .tag-feat { background: rgba(63,185,80,0.15); color: var(--green); }
+    .tag-refactor { background: rgba(210,153,34,0.15); color: var(--yellow); }
+    .tag-audit { background: rgba(188,140,255,0.15); color: var(--purple); }
+    .details { color: var(--text-dim); font-size: 13px; margin-top: 8px; }
+    .details ul { padding-left: 16px; }
+    .details li { margin-bottom: 4px; }
+    .commit { color: var(--accent); font-family: monospace; font-size: 12px; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-value { font-size: 32px; font-weight: 700; }
+    .stat-value.green { color: var(--green); }
+    .stat-value.red { color: var(--red); }
+    .stat-value.blue { color: var(--accent); }
+    .stat-value.yellow { color: var(--yellow); }
+    .stat-label { color: var(--text-dim); font-size: 12px; margin-top: 4px; }
+    .progress-bar {
+      height: 8px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s;
+    }
+    .arch-diagram {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      font-family: monospace;
+      font-size: 13px;
+      line-height: 1.8;
+      overflow-x: auto;
+      white-space: pre;
+    }
+    @media (max-width: 600px) {
+      body { padding: 12px; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎵 Claudio — 个人音乐播放器</h1>
+    <p class="subtitle">React 19 + Vite 6 + TailwindCSS 4 | Express 4 + Socket.IO | 网易云音乐 API</p>
+
+    <!-- 统计概览 -->
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-value blue">17</div>
+        <div class="stat-label">总提交数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value green">PWA</div>
+        <div class="stat-label">应用形态</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value yellow">3 层</div>
+        <div class="stat-label">项目架构</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value red">0</div>
+        <div class="stat-label">已知严重 Bug</div>
+      </div>
+    </div>
+
+    <!-- 核心架构 -->
+    <div class="section">
+      <div class="section-title"><span class="icon">🏗️</span> 核心架构</div>
+      <div class="arch-diagram">┌─────────────────────────────────────────────────────────────┐
+│                    Claudio 音乐播放器                        │
+├─────────────────────────────────────────────────────────────┤
+│  前端 (React 19 + Vite 6 + TailwindCSS 4)                   │
+│  ├─ App.tsx          主布局 + 三栏控制栏 + 自适应字体         │
+│  ├─ usePlayer.ts     核心播放 Hook（canplay/error 生命周期）  │
+│  ├─ SearchPanel.tsx   搜索面板 + 歌曲列表                    │
+│  ├─ QueueDrawer.tsx   队列抽屉 + 播放状态同步                │
+│  └─ ImmersiveLyrics.tsx 沉浸式歌词                           │
+├─────────────────────────────────────────────────────────────┤
+│  后端 (Express 4 + Socket.IO + TypeScript)                   │
+│  ├─ app.ts           路由 + 音频代理（Range/SSRF/Magic）     │
+│  ├─ music.service.ts  网易云 API + 缓存 + 限流               │
+│  ├─ playlist.service.ts 歌单解析                             │
+│  └─ weather.service.ts 天气服务                              │
+├─────────────────────────────────────────────────────────────┤
+│  外部依赖                                                    │
+│  ├─ 网易云音乐 API (localhost:3000)                          │
+│  └─ OpenWeatherMap API                                      │
+└─────────────────────────────────────────────────────────────┘</div>
+    </div>
+
+    <!-- 完成进度 -->
+    <div class="section">
+      <div class="section-title"><span class="icon">📊</span> 功能完成度</div>
+
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:13px">
+          <span>音乐播放核心</span><span style="color:var(--green)">100%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:100%;background:var(--green)"></div></div>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:13px">
+          <span>音频代理 (Range/SSRF/Magic Byte)</span><span style="color:var(--green)">100%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:100%;background:var(--green)"></div></div>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:13px">
+          <span>播放队列 + 持久化</span><span style="color:var(--green)">100%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:100%;background:var(--green)"></div></div>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:13px">
+          <span>歌词显示 (普通/沉浸式)</span><span style="color:var(--green)">100%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:100%;background:var(--green)"></div></div>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:13px">
+          <span>搜索 + 收藏 + 歌单</span><span style="color:var(--green)">100%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:100%;background:var(--green)"></div></div>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:13px">
+          <span>三档自适应字体布局</span><span style="color:var(--green)">100%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:100%;background:var(--green)"></div></div>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:13px">
+          <span>PWA 离线支持</span><span style="color:var(--yellow)">80%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:80%;background:var(--yellow)"></div></div>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:13px">
+          <span>音质选择 (standard/hires等)</span><span style="color:var(--red)">0%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:0%;background:var(--red)"></div></div>
+      </div>
+    </div>
+
+    <!-- 开发日志 -->
+    <div class="section">
+      <div class="section-title"><span class="icon">📝</span> 开发日志</div>
+      <div class="timeline">
+
+        <!-- 2026-06-24 -->
+        <div class="entry fix">
+          <div class="entry-header">
+            <div>
+              <span class="tag tag-fix">fix</span>
+              <span class="entry-title">彻底修复媒体错误 code=4 — 音频代理 Range 支持 + 前端播放健壮性</span>
+            </div>
+            <span class="entry-date">2026-06-24</span>
+          </div>
+          <span class="commit">6f57d63</span>
+          <div class="details">
+            <p><strong>根因：</strong>音频代理声明 <code>Accept-Ranges: bytes</code> 但不处理 Range 请求，浏览器 seek 时收到 200 而非 206，导致资源加载失败。</p>
+            <ul>
+              <li><strong>音频代理：</strong>支持 Range 请求透传，返回 206 Partial Content + Content-Range</li>
+              <li><strong>音频代理：</strong>缓冲第一个 chunk 做 magic byte 验证后再写响应头</li>
+              <li><strong>音频代理：</strong>添加 WAV (RIFF) magic byte，拦截 text/html Content-Type</li>
+              <li><strong>音频代理：</strong>错误处理检查 headersSent，避免 "headers already sent" 异常</li>
+              <li><strong>前端：</strong>快速路径移到 audio.src 赋值后，用 audio.currentSrc 比较</li>
+              <li><strong>前端：</strong>code=4 时自动调用 /api/song-url?force=true 重新获取 URL</li>
+              <li><strong>后端：</strong>getSongUrl 支持 force 参数绕过缓存</li>
+              <li><strong>前端：</strong>onended 添加 .catch() 防止 unhandled rejection</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="entry fix">
+          <div class="entry-header">
+            <div>
+              <span class="tag tag-fix">fix</span>
+              <span class="entry-title">彻底修复媒体错误 code=4 — 简化播放流程</span>
+            </div>
+            <span class="entry-date">2026-06-24</span>
+          </div>
+          <span class="commit">86a2083</span>
+          <div class="details">
+            <p>移除 removeAttribute + load() 重置步骤，避免触发 MEDIA_ERR_ABORTED。</p>
+          </div>
+        </div>
+
+        <div class="entry fix">
+          <div class="entry-header">
+            <div>
+              <span class="tag tag-fix">fix</span>
+              <span class="tag tag-audit">audit</span>
+              <span class="entry-title">媒体错误 code=4 修复 + 代码风险全面排查</span>
+            </div>
+            <span class="entry-date">2026-06-24</span>
+          </div>
+          <span class="commit">906467b</span>
+          <div class="details">
+            <ul>
+              <li>Content-Type 去除 charset，octet-stream 按扩展名推断</li>
+              <li>magic byte 验证（MP3/FLAC/OGG/M4A）</li>
+              <li>SSRF 白名单支持子域名匹配</li>
+              <li>MemoryCache 添加 10 分钟自动清理</li>
+              <li>RateLimiter 添加 mutex 串行化并发调用</li>
+              <li>搜索/URL 失败返回 { success: false } 而非 mock 数据</li>
+              <li>config.ts mock 默认值改为 false</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="entry fix">
+          <div class="entry-header">
+            <div>
+              <span class="tag tag-fix">fix</span>
+              <span class="entry-title">继续代码审计 — PlaylistService/WeatherService 容错</span>
+            </div>
+            <span class="entry-date">2026-06-24</span>
+          </div>
+          <span class="commit">e00a439</span>
+          <div class="details">
+            <ul>
+              <li>wyy.json 不存在时返回空分析而非崩溃</li>
+              <li>天气服务 API Key 缺失时回退 mock</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="entry fix">
+          <div class="entry-header">
+            <div>
+              <span class="tag tag-fix">fix</span>
+              <span class="entry-title">继续代码审计 — logger/CSS 重复修复</span>
+            </div>
+            <span class="entry-date">2026-06-24</span>
+          </div>
+          <span class="commit">09bb3c4</span>
+          <div class="details">
+            <ul>
+              <li>LOG_LEVEL 验证：无效值安全回退 info</li>
+              <li>移除 index.css 中重复的 fadeIn/pulse 定义</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="entry fix">
+          <div class="entry-header">
+            <div>
+              <span class="tag tag-fix">fix</span>
+              <span class="tag tag-audit">audit</span>
+              <span class="entry-title">全面代码审计修复 — 9 项问题</span>
+            </div>
+            <span class="entry-date">2026-06-24</span>
+          </div>
+          <span class="commit">871461e</span>
+          <div class="details">
+            <ul>
+              <li>SearchPanel 选择失败显示 toast 错误</li>
+              <li>toggleLike 兼容 SongInfo[] 格式</li>
+              <li>handleNext 使用 play() 而非 audio.play()</li>
+              <li>其他健壮性修复</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="entry fix">
+          <div class="entry-header">
+            <div>
+              <span class="tag tag-fix">fix</span>
+              <span class="entry-title">彻底修复播放失败 + 歌单播放状态同步</span>
+            </div>
+            <span class="entry-date">2026-06-24</span>
+          </div>
+          <span class="commit">6eb088c</span>
+          <div class="details">
+            <p>重写 usePlayer.ts 播放流程：pause → 添加监听 → 设置 src → 等待 canplay → play()。</p>
+          </div>
+        </div>
+
+        <!-- 功能迭代 -->
+        <div class="entry feat">
+          <div class="entry-header">
+            <div>
+              <span class="tag tag-feat">feat</span>
+              <span class="entry-title">三档自适应字体 — 基于 showCover + showTime 组合</span>
+            </div>
+            <span class="entry-date">2026-06-24</span>
+          </div>
+          <span class="commit">38b0254</span>
+          <div class="details">
+            <p>hiddenCount = (showCover?0:1) + (showTime?0:1)，字体从 14px → 18px → 24px 三档递增。</p>
+          </div>
+        </div>
+
+        <div class="entry refactor">
+          <div class="entry-header">
+            <div>
+              <span class="tag tag-refactor">refactor</span>
+              <span class="entry-title">队列按钮移至左侧 + 歌词/信息自适应布局</span>
+            </div>
+            <span class="entry-date">2026-06-24</span>
+          </div>
+          <span class="commit">034d744</span>
+          <div class="details">
+            <p>控制栏三栏布局：左侧(queue+transport) | 中间(progress) | 右侧(utility)。</p>
+          </div>
+        </div>
+
+        <div class="entry fix">
+          <div class="entry-header">
+            <div>
+              <span class="tag tag-fix">fix</span>
+              <span class="entry-title">修复音乐播放失败 — 音量同步、错误提示、重试逻辑、SSRF 白名单</span>
+            </div>
+            <span class="entry-date">2026-06-24</span>
+          </div>
+          <span class="commit">a3561b9</span>
+        </div>
+
+        <div class="entry refactor">
+          <div class="entry-header">
+            <div>
+              <span class="tag tag-refactor">refactor</span>
+              <span class="entry-title">底部控制栏重构为三栏布局</span>
+            </div>
+            <span class="entry-date">2026-06-24</span>
+          </div>
+          <span class="commit">729449b</span>
+        </div>
+
+        <div class="entry refactor">
+          <div class="entry-header">
+            <div>
+              <span class="tag tag-refactor">refactor</span>
+              <span class="entry-title">统一控件行 + SVG 图标 + 封面/时钟显示开关</span>
+            </div>
+            <span class="entry-date">2026-06-24</span>
+          </div>
+          <span class="commit">9dd80e0</span>
+        </div>
+
+        <div class="entry feat">
+          <div class="entry-header">
+            <div>
+              <span class="tag tag-feat">feat</span>
+              <span class="entry-title">沉浸式歌词重设计 + 音乐播放修复</span>
+            </div>
+            <span class="entry-date">2026-06-24</span>
+          </div>
+          <span class="commit">41fe879</span>
+        </div>
+
+        <div class="entry feat">
+          <div class="entry-header">
+            <div>
+              <span class="tag tag-feat">feat</span>
+              <span class="entry-title">v2.0: 对话式 AI 电台 — TypeScript monorepo</span>
+            </div>
+            <span class="entry-date">2026-06-23</span>
+          </div>
+          <span class="commit">ffac87f</span>
+          <div class="details">
+            <p>项目初始化：Claude 集成、网易云 API、对话界面、播放器。</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 已修复的关键问题 -->
+    <div class="section">
+      <div class="section-title"><span class="icon">🔧</span> 已修复的关键问题</div>
+      <div class="entry fix">
+        <div class="entry-title">P0: 音频代理不支持 Range 请求</div>
+        <div class="details">
+          <p><strong>现象：</strong>播放时频繁报错 "媒体错误 code=4 格式不支持"</p>
+          <p><strong>根因：</strong>代理声明 <code>Accept-Ranges: bytes</code> 但不处理客户端的 Range 请求头。浏览器发送 <code>Range: bytes=0-</code> 时代理返回 200 OK 而非 206 Partial Content，浏览器丢弃响应。</p>
+          <p><strong>修复：</strong>透传 Range 到上游，返回 206 + Content-Range。缓冲第一个 chunk 验证 magic byte 后再写响应头。</p>
+        </div>
+      </div>
+      <div class="entry fix">
+        <div class="entry-title">P0: 前端播放流程竞态条件</div>
+        <div class="details">
+          <p><strong>现象：</strong>同一首歌重播时跳过加载</p>
+          <p><strong>根因：</strong>快速路径检查在 audio.src 赋值前执行，比较的是上一首歌的 URL 和 readyState。</p>
+          <p><strong>修复：</strong>移到 src 赋值后检查，使用 audio.currentSrc 比较。</p>
+        </div>
+      </div>
+      <div class="entry fix">
+        <div class="entry-title">P0: removeAttribute + load() 触发 MEDIA_ERR_ABORTED</div>
+        <div class="details">
+          <p><strong>现象：</strong>code=1 用户中止错误频繁出现</p>
+          <p><strong>根因：</strong>播放前调用 removeAttribute('src') + audio.load() 重置，触发 ABORTED 事件在监听器添加前。</p>
+          <p><strong>修复：</strong>移除所有手动重置步骤，浏览器在 src 赋值后自动加载。</p>
+        </div>
+      </div>
+      <div class="entry fix">
+        <div class="entry-title">P1: Content-Type charset 污染</div>
+        <div class="details">
+          <p><strong>现象：</strong>audio/mpeg; charset=UTF-8 导致浏览器拒绝播放</p>
+          <p><strong>修复：</strong>去除 charset 后缀，octet-stream 按扩展名推断正确 MIME。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 待办事项 -->
+    <div class="section">
+      <div class="section-title"><span class="icon">📋</span> 待办事项</div>
+      <div class="entry" style="border-left: 3px solid var(--yellow);">
+        <div class="entry-title">音质选择功能</div>
+        <div class="details">
+          <p>当前未向网易云 API 传递 <code>br</code> 参数，默认使用最低音质。需添加音质选择 UI（standard/higher/exhigh/lossless/hires）。</p>
+        </div>
+      </div>
+      <div class="entry" style="border-left: 3px solid var(--yellow);">
+        <div class="entry-title">URL 过期自动刷新</div>
+        <div class="details">
+          <p>网易云签名 URL 有效期约 2-4 小时，当前缓存 TTL 1 小时。可在播放失败时自动 force 刷新，已实现基础逻辑。</p>
+        </div>
+      </div>
+      <div class="entry" style="border-left: 3px solid var(--text-dim);">
+        <div class="entry-title">移动端 Autoplay 策略适配</div>
+        <div class="details">
+          <p>iOS Safari 对 autoplay 限制严格，需在用户手势中解锁 AudioContext。当前桌面端已正常工作。</p>
+        </div>
+      </div>
+    </div>
+
+    <footer style="text-align:center;color:var(--text-dim);font-size:12px;padding:24px 0;border-top:1px solid var(--border);margin-top:24px;">
+      Claudio 项目进度文档 · 最后更新：2026-06-24 · 自动生成
+    </footer>
+  </div>
+</body>
+</html>
