@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiUrl } from '../../lib/api.js';
 
 interface Stats {
   totalSongs: number;
@@ -18,12 +19,12 @@ export default function Dashboard() {
 
   useEffect(() => {
     // Load stats
-    fetch('/api/playlist').then(r => r.json()).then(data => {
+    fetch(apiUrl('/api/playlist')).then(r => r.json()).then(data => {
       setStats(prev => ({ ...prev, totalSongs: data.total || 0 }));
     }).catch(() => {});
 
     // Load recent plays
-    fetch('/api/plays/recent').then(r => r.json()).then(setRecentPlays).catch(() => {});
+    fetch(apiUrl('/api/plays/recent')).then(r => r.json()).then(setRecentPlays).catch(() => {});
   }, []);
 
   const statCards = [

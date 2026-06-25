@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect, useMemo, memo } from 'react';
 import { usePlayer, type SongInfo } from './hooks/usePlayer.js';
 import { useSocket } from './hooks/useSocket.js';
 import SearchPanel from './components/SearchPanel.js';
+import { apiUrl } from './lib/api.js';
 
 // ===== LocalStorage helpers =====
 function loadState<T>(key: string, fallback: T): T {
@@ -375,7 +376,7 @@ export default function App() {
   useEffect(() => {
     if (queue.length > 0) {
       // Pre-warm cache for saved queue in background
-      fetch('/api/warmup', {
+      fetch(apiUrl('/api/warmup'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ songs: queue.slice(0, 10).map(s => ({ name: s.name, artist: s.artist })) }),
@@ -383,14 +384,14 @@ export default function App() {
       return;
     }
     let cancelled = false;
-    fetch('/api/playlist-resolved')
+    fetch(apiUrl('/api/playlist-resolved'))
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(data => {
         if (cancelled || !data.songs?.length) return;
         setQueue(data.songs);
         setQueueIdx(0);
         // Pre-warm cache for first batch
-        fetch('/api/warmup', {
+        fetch(apiUrl('/api/warmup'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ songs: data.songs.slice(0, 10).map((s: SongInfo) => ({ name: s.name, artist: s.artist })) }),
@@ -404,7 +405,7 @@ export default function App() {
   useEffect(() => {
     if (!current) return;
     let cancelled = false;
-    fetch(`/api/lyrics?id=${current.id}&name=${encodeURIComponent(current.name)}&artist=${encodeURIComponent(current.artist)}`)
+    fetch(apiUrl(`/api/lyrics?id=${current.id}&name=${encodeURIComponent(current.name)}&artist=${encodeURIComponent(current.artist)}`))
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(data => {
         if (cancelled) return;
@@ -426,7 +427,7 @@ export default function App() {
   useEffect(() => {
     if (!current?.id) return;
     let cancelled = false;
-    fetch(`/api/comment?id=${current.id}`)
+    fetch(apiUrl(`/api/comment?id=${current.id}`))
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(data => {
         if (!cancelled) setComment(data.comment || null);
@@ -505,7 +506,7 @@ export default function App() {
     const nextIdx = (queueIdx + 1) % queue.length;
     const nextSong = queue[nextIdx];
     if (nextSong && !nextSong.url) {
-      fetch(`/api/song-url?name=${encodeURIComponent(nextSong.name)}&artist=${encodeURIComponent(nextSong.artist)}`)
+      fetch(apiUrl(`/api/song-url?name=${encodeURIComponent(nextSong.name)}&artist=${encodeURIComponent(nextSong.artist)}`))
         .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
         .then(data => {
           if (!cancelled && data.url) {

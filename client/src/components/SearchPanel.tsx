@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { SongInfo } from '../hooks/usePlayer.js';
+import { apiUrl } from '../lib/api.js';
 
 interface Props {
   onSelect: (song: SongInfo) => void;
@@ -54,7 +55,7 @@ export default function SearchPanel({ onSelect, accent, text, textDim, show, onC
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch('/api/search', {
+        const res = await fetch(apiUrl('/api/search'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ keyword: query, limit: 20 }),
@@ -81,7 +82,7 @@ export default function SearchPanel({ onSelect, accent, text, textDim, show, onC
 
     // Fetch URL first, only close on success
     try {
-      const res = await fetch(`/api/song-url?id=${song.id}`);
+      const res = await fetch(apiUrl(`/api/song-url?id=${song.id}`));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (data.url) {

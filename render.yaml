@@ -1,0 +1,41 @@
+# Render 部署配置
+# 文档: https://render.com/docs/blueprint-spec
+
+services:
+  # ===== 后端 API 服务 =====
+  - type: web
+    name: claudio-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci --workspace=server && npm run build -w server
+    startCommand: node server/dist/index.js
+    healthCheckPath: /api/playlist
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NETEASE_API_BASE
+        sync: false
+      - key: NETEASE_COOKIE
+        sync: false
+      - key: BRAIN_API_URL
+        value: https://api.deepseek.com/anthropic
+      - key: BRAIN_API_KEY
+        sync: false
+      - key: BRAIN_MODEL
+        value: deepseek-chat
+      - key: OPENWEATHER_API_KEY
+        sync: false
+      - key: OPENWEATHER_CITY
+        value: Beijing
+
+  # ===== 网易云音乐 API =====
+  - type: web
+    name: claudio-netease
+    runtime: node
+    plan: free
+    rootDir: netease-api
+    buildCommand: npm ci
+    startCommand: npx NeteaseCloudMusicApi -p 3000
+    envVars:
+      - key: PORT
+        value: 3000

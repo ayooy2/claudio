@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiUrl } from '../../lib/api.js';
 
 interface Playlist {
   id: string;
@@ -16,7 +17,7 @@ export default function PlaylistManager() {
   const [newDesc, setNewDesc] = useState('');
 
   useEffect(() => {
-    fetch('/api/playlists').then(r => r.json()).then(setPlaylists).catch(() => {});
+    fetch(apiUrl('/api/playlists')).then(r => r.json()).then(setPlaylists).catch(() => {});
   }, []);
 
   const handleCreate = () => {

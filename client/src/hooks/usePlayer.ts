@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback } from 'react';
+import { apiUrl } from '../lib/api.js';
 
 export interface SongInfo {
   id: string;
@@ -135,7 +136,7 @@ export function usePlayer() {
       if (e?.message?.includes('code=4') && song.url) {
         console.warn('媒体错误 code=4，尝试重新获取 URL...');
         try {
-          const res = await fetch(`/api/song-url?id=${song.id}&force=true`);
+          const res = await fetch(apiUrl(`/api/song-url?id=${song.id}&force=true`));
           const data = await res.json();
           if (data.url) {
             // 更新 song 的 url 和 queue 中的引用

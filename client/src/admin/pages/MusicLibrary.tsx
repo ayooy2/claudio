@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiUrl } from '../../lib/api.js';
 
 interface Song {
   id: string;
@@ -18,7 +19,7 @@ export default function MusicLibrary() {
   const [filter, setFilter] = useState<'all' | 'favorites' | 'enabled'>('all');
 
   useEffect(() => {
-    fetch('/api/playlist').then(r => r.json()).then(data => {
+    fetch(apiUrl('/api/playlist')).then(r => r.json()).then(data => {
       setSongs(data.songs?.map((s: any, i: number) => ({
         id: String(i),
         name: s.name,
