@@ -255,9 +255,30 @@
 
       <div style="margin-bottom:12px">
         <div style="display:flex;justify-content:space-between;font-size:13px">
-          <span>音质选择 (standard/hires等)</span><span style="color:var(--red)">0%</span>
+          <span>音质选择 (standard/hires等)</span><span style="color:var(--green)">100%</span>
         </div>
-        <div class="progress-bar"><div class="progress-fill" style="width:0%;background:var(--red)"></div></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:100%;background:var(--green)"></div></div>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:13px">
+          <span>移动端自动播放 (iOS Safari)</span><span style="color:var(--green)">100%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:100%;background:var(--green)"></div></div>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:13px">
+          <span>Socket.IO 调度器消息集成</span><span style="color:var(--green)">100%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:100%;background:var(--green)"></div></div>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:13px">
+          <span>Admin 后端 API (歌单/播放记录)</span><span style="color:var(--green)">100%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:100%;background:var(--green)"></div></div>
       </div>
     </div>
 
@@ -594,10 +615,10 @@
     <!-- 待办事项 -->
     <div class="section">
       <div class="section-title"><span class="icon">📋</span> 待办事项</div>
-      <div class="entry" style="border-left: 3px solid var(--yellow);">
-        <div class="entry-title">音质选择功能</div>
+      <div class="entry" style="border-left: 3px solid var(--green);">
+        <div class="entry-title">音质选择功能 ✅</div>
         <div class="details">
-          <p>当前未向网易云 API 传递 <code>br</code> 参数，默认使用最低音质。需添加音质选择 UI（standard/higher/exhigh/lossless/hires）。</p>
+          <p>已实现。后端支持 br 参数，设置面板提供标准/较高/极高/无损四档选择，缓存键包含码率。</p>
         </div>
       </div>
       <div class="entry" style="border-left: 3px solid var(--yellow);">
@@ -606,10 +627,10 @@
           <p>网易云签名 URL 有效期约 2-4 小时，当前缓存 TTL 1 小时。可在播放失败时自动 force 刷新，已实现基础逻辑。</p>
         </div>
       </div>
-      <div class="entry" style="border-left: 3px solid var(--text-dim);">
-        <div class="entry-title">移动端 Autoplay 策略适配</div>
+      <div class="entry" style="border-left: 3px solid var(--green);">
+        <div class="entry-title">移动端 Autoplay 策略适配 ✅</div>
         <div class="details">
-          <p>iOS Safari 对 autoplay 限制严格，需在用户手势中解锁 AudioContext。当前桌面端已正常工作。</p>
+          <p>已实现。AudioContext 懒创建 + resume 机制，覆盖 play() 和 togglePlay() 所有播放路径。</p>
         </div>
       </div>
     </div>
