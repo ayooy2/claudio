@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { useState, useEffect, useRef } from 'react';
 import App from './App.js';
 import AdminApp from './admin/AdminApp.js';
+import { ErrorBoundary } from './components/ErrorBoundary.js';
 import './index.css';
 
 function Root() {
@@ -34,8 +35,11 @@ function Root() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  if (isAdmin) return <AdminApp />;
-  return <App />;
+  return (
+    <ErrorBoundary>
+      {isAdmin ? <AdminApp /> : <App />}
+    </ErrorBoundary>
+  );
 }
 
 createRoot(document.getElementById('root')!).render(

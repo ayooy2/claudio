@@ -1,4 +1,4 @@
-const CACHE = 'claudio-v2';
+const CACHE = 'claudio-v3';
 const ASSETS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', (e) => {
@@ -13,6 +13,26 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+
+  const url = new URL(e.request.url);
+
+  // 排除 API 请求 — 始终走网络
+  if (url.pathname.startsWith('/api/')) {
+    e.respondWith(fetch(e.request).catch(() => new Response('{"error":"网络不可用"}', {
+      status: 503, headers: { 'Content-Type': 'application/json' }
+    })));
+    return;
+  }
+
+  // SPA 路由回退：导航请求失败时返回 index.html
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request).catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
+  // 静态资源：stale-while-revalidate
   e.respondWith(
     caches.match(e.request).then(cached => {
       const fetched = fetch(e.request).then(r => {

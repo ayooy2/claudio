@@ -26,7 +26,7 @@ export function usePlayer() {
       const s = localStorage.getItem('claudio_volume');
       if (!s) return 0.6;
       const parsed = JSON.parse(s);
-      return typeof parsed === 'number' ? parsed : 0.6;
+      return typeof parsed === 'number' ? Math.max(0, Math.min(1, parsed)) : 0.6;
     } catch { return 0.6; }
   });
   const [isMuted, setIsMuted] = useState(false);
@@ -37,7 +37,11 @@ export function usePlayer() {
   // Ref for play to avoid stale closures in auto-play scenarios
   const playRef = useRef<(song: SongInfo) => Promise<void>>(undefined!);
 
+  // Concurrency guard: increment on each play() call, ignore stale results
+  const playSeqRef = useRef(0);
+
   const play = useCallback(async (song: SongInfo) => {
+    const seq = ++playSeqRef.current;
     setCurrent(song);
     setCurrentTime(0);
     setDuration(song.duration || 0);
@@ -76,6 +80,9 @@ export function usePlayer() {
     }
 
     clearTimeout(timeoutId);
+
+    // If a newer play() has been called, abort this one
+    if (playSeqRef.current !== seq) return;
 
     if (!url) {
       setIsPlaying(false);
@@ -123,6 +130,9 @@ export function usePlayer() {
         // 超时
         const timer = setTimeout(() => { cleanup(); reject(new Error('加载超时（10s）')); }, 10000);
       });
+
+      // Check again after await — a newer play() may have started
+      if (playSeqRef.current !== seq) return;
 
       await audio.play();
       setIsPlaying(true);
@@ -197,13 +207,14 @@ export function usePlayer() {
       setVolumeState(volumeBeforeMute);
       setIsMuted(false);
     } else {
-      setVolumeBeforeMute(volume);
+      const currentVol = volumeRef.current;
+      setVolumeBeforeMute(currentVol);
       audioRef.current.volume = 0;
       volumeRef.current = 0;
       setVolumeState(0);
       setIsMuted(true);
     }
-  }, [isMuted, volume, volumeBeforeMute]);
+  }, [isMuted, volumeBeforeMute]);
 
   const seek = useCallback((pct: number) => {
     if (audioRef.current) {

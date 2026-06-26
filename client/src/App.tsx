@@ -488,7 +488,7 @@ export default function App() {
     el.volume = volumeRef.current;
   }, []);
 
-  // Separate effect for onended (uses refs for latest state)
+  // Separate effect for onended — uses refs for latest state, re-attaches when audioRef populated
   useEffect(() => {
     const el = audioRef.current;
     if (!el) return;
@@ -507,7 +507,7 @@ export default function App() {
         setIsPlaying(false);
       }
     };
-  }, []);
+  }, [audioRef.current]);
 
   // Pre-fetch next song URL
   useEffect(() => {
@@ -595,18 +595,27 @@ export default function App() {
     try { localStorage.setItem('claudio_play_mode', JSON.stringify(playMode)); } catch {}
   }, [playMode]);
 
-  // Keyboard (use refs to avoid re-binding)
+  // Keyboard — use refs for callbacks to avoid re-binding on every state change
+  const handleToggleRef = useRef(handleToggle);
+  const handlePrevRef = useRef(handlePrev);
+  const handleNextRef = useRef(handleNext);
+  const toggleMuteRef = useRef(toggleMute);
+  useEffect(() => { handleToggleRef.current = handleToggle; }, [handleToggle]);
+  useEffect(() => { handlePrevRef.current = handlePrev; }, [handlePrev]);
+  useEffect(() => { handleNextRef.current = handleNext; }, [handleNext]);
+  useEffect(() => { toggleMuteRef.current = toggleMute; }, [toggleMute]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement) return;
       switch (e.code) {
-        case 'Space': e.preventDefault(); handleToggle(); break;
-        case 'ArrowLeft': handlePrev(); break;
-        case 'ArrowRight': handleNext(); break;
+        case 'Space': e.preventDefault(); handleToggleRef.current(); break;
+        case 'ArrowLeft': handlePrevRef.current(); break;
+        case 'ArrowRight': handleNextRef.current(); break;
         case 'KeyL': setShowLyrics(v => !v); break;
         case 'KeyQ': setShowQueue(v => !v); break;
         case 'KeyS': setShowSearch(v => !v); break;
-        case 'KeyM': toggleMute(); break;
+        case 'KeyM': toggleMuteRef.current(); break;
         case 'KeyF':
           if (!document.fullscreenElement) document.documentElement.requestFullscreen();
           else document.exitFullscreen();
@@ -616,7 +625,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleToggle, handlePrev, handleNext, toggleMute]);
+  }, []);
 
   // Scene switch
   const sceneTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -625,6 +634,13 @@ export default function App() {
     clearTimeout(sceneTimerRef.current);
     sceneTimerRef.current = setTimeout(() => { setScene(s); setSceneChanging(false); }, 300);
   }, []);
+
+  // Cleanup scene timer on unmount
+  useEffect(() => () => clearTimeout(sceneTimerRef.current), []);
+
+  // Refs for progress bar drag cleanup
+  const dragCleanupRef = useRef<(() => void) | null>(null);
+  useEffect(() => () => { dragCleanupRef.current?.(); }, []);
 
   // Like
   const toggleLike = useCallback(() => {
@@ -662,6 +678,7 @@ export default function App() {
 
   return (
     <div
+      id="player-root"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       style={{
@@ -1011,7 +1028,9 @@ export default function App() {
                   const r = bar.getBoundingClientRect();
                   handleSeek(Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)));
                 };
-                const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+                const cleanup = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); dragCleanupRef.current = null; };
+                const onUp = () => { cleanup(); };
+                dragCleanupRef.current = cleanup;
                 window.addEventListener('mousemove', onMove);
                 window.addEventListener('mouseup', onUp);
               }}>
@@ -1360,7 +1379,7 @@ export default function App() {
 
       {/* 播放错误提示 */}
       {playError && (
-        <div onClick={clearError} style={{
+        <div onClick={clearError} role="alert" aria-live="assertive" style={{
           position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)',
           background: 'rgba(220,38,38,0.9)', backdropFilter: 'blur(8px)',
           padding: '8px 20px', borderRadius: 20, zIndex: 200,
@@ -1413,10 +1432,10 @@ export default function App() {
       )}
 
       <style>{`
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+        .queue-drawer::-webkit-scrollbar { width: 4px; }
+        .queue-drawer::-webkit-scrollbar-track { background: transparent; }
+        .queue-drawer::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+        .queue-drawer::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
       `}</style>
     </div>
   );

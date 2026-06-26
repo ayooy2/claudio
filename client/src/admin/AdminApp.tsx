@@ -25,7 +25,7 @@ export default function AdminApp() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
-    <div style={{
+    <div id="admin-root" style={{
       display: 'flex', height: '100vh', background: '#0a0a10',
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       color: 'rgba(255,255,255,0.8)',

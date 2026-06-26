@@ -25,6 +25,16 @@ export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent
   const [tab, setTab] = useState<'search' | 'favorites' | 'history'>('search');
   const [recentPlays, setRecentPlays] = useState<{ id?: string; name: string; artist: string; album: string; timestamp: number }[]>([]);
   const [selectError, setSelectError] = useState<string | null>(null);
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup error timer on unmount
+  useEffect(() => () => { if (errorTimerRef.current) clearTimeout(errorTimerRef.current); }, []);
+
+  const showTempError = (msg: string) => {
+    setSelectError(msg);
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    errorTimerRef.current = setTimeout(() => { setSelectError(null); errorTimerRef.current = null; }, 3000);
+  };
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Load from localStorage
@@ -95,12 +105,10 @@ export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent
         onSelect({ ...song, url: data.url, isTrial: data.isTrial });
         onClose();
       } else {
-        setSelectError('该歌曲暂无可用播放链接');
-        setTimeout(() => setSelectError(null), 3000);
+        showTempError('该歌曲暂无可用播放链接');
       }
     } catch (err) {
-      setSelectError('获取播放链接失败，请重试');
-      setTimeout(() => setSelectError(null), 3000);
+      showTempError('获取播放链接失败，请重试');
     }
   };
 
@@ -117,12 +125,10 @@ export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent
         onSelect({ id: data.id || entry.id || '', name: entry.name, artist: entry.artist, album: entry.album, url: data.url, isTrial: data.isTrial } as SongInfo);
         onClose();
       } else {
-        setSelectError('该歌曲暂无可用播放链接');
-        setTimeout(() => setSelectError(null), 3000);
+        showTempError('该歌曲暂无可用播放链接');
       }
     } catch (err) {
-      setSelectError('获取播放链接失败，请重试');
-      setTimeout(() => setSelectError(null), 3000);
+      showTempError('获取播放链接失败，请重试');
     }
   };
 
