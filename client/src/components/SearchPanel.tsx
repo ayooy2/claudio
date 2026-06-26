@@ -4,6 +4,8 @@ import { apiUrl } from '../lib/api.js';
 
 interface Props {
   onSelect: (song: SongInfo) => void;
+  likedSongs: SongInfo[];
+  onToggleLike: (song: SongInfo) => void;
   accent: string;
   text: string;
   textDim: string;
@@ -16,13 +18,12 @@ interface SearchResult {
   loading: boolean;
 }
 
-export default function SearchPanel({ onSelect, accent, text, textDim, show, onClose }: Props) {
+export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent, text, textDim, show, onClose }: Props) {
   const [query, setQuery] = useState('');
   const [result, setResult] = useState<SearchResult>({ songs: [], loading: false });
   const [history, setHistory] = useState<string[]>([]);
   const [tab, setTab] = useState<'search' | 'favorites' | 'history'>('search');
-  const [favorites, setFavorites] = useState<SongInfo[]>([]);
-  const [recentPlays, setRecentPlays] = useState<SongInfo[]>([]);
+  const [recentPlays, setRecentPlays] = useState<{ id?: string; name: string; artist: string; album: string; timestamp: number }[]>([]);
   const [selectError, setSelectError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -31,12 +32,17 @@ export default function SearchPanel({ onSelect, accent, text, textDim, show, onC
     try {
       const h = localStorage.getItem('claudio_search_history');
       if (h) setHistory(JSON.parse(h));
-      const f = localStorage.getItem('claudio_favorites');
-      if (f) setFavorites(JSON.parse(f));
+    } catch {}
+  }, []);
+
+  // Refresh recent plays when panel opens
+  useEffect(() => {
+    if (!show) return;
+    try {
       const r = localStorage.getItem('claudio_recent_plays');
       if (r) setRecentPlays(JSON.parse(r));
     } catch {}
-  }, []);
+  }, [show]);
 
   // Focus input when opened
   useEffect(() => {
@@ -98,11 +104,26 @@ export default function SearchPanel({ onSelect, accent, text, textDim, show, onC
     }
   };
 
-  const toggleFavorite = (song: SongInfo) => {
-    const exists = favorites.some(f => f.id === song.id);
-    const newFavs = exists ? favorites.filter(f => f.id !== song.id) : [...favorites, song];
-    setFavorites(newFavs);
-    localStorage.setItem('claudio_favorites', JSON.stringify(newFavs));
+  const handleRecentPlaySelect = async (entry: { id?: string; name: string; artist: string; album: string }) => {
+    setSelectError(null);
+    try {
+      const url = entry.id
+        ? apiUrl(`/api/song-url?id=${entry.id}`)
+        : apiUrl(`/api/song-url?name=${encodeURIComponent(entry.name)}&artist=${encodeURIComponent(entry.artist)}`);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.url) {
+        onSelect({ id: data.id || entry.id || '', name: entry.name, artist: entry.artist, album: entry.album, url: data.url, isTrial: data.isTrial } as SongInfo);
+        onClose();
+      } else {
+        setSelectError('该歌曲暂无可用播放链接');
+        setTimeout(() => setSelectError(null), 3000);
+      }
+    } catch (err) {
+      setSelectError('获取播放链接失败，请重试');
+      setTimeout(() => setSelectError(null), 3000);
+    }
   };
 
   const clearHistory = () => {
@@ -234,8 +255,8 @@ export default function SearchPanel({ onSelect, accent, text, textDim, show, onC
                       <div style={{ fontSize: 13, color: text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</div>
                       <div style={{ fontSize: 11, color: textDim }}>{s.artist} · {s.album}</div>
                     </div>
-                    <button onClick={(e) => { e.stopPropagation(); toggleFavorite(s); }} style={{
-                      background: 'none', border: 'none', color: favorites.some(f => f.id === s.id) ? accent : textDim,
+                    <button onClick={(e) => { e.stopPropagation(); onToggleLike(s); }} style={{
+                      background: 'none', border: 'none', color: likedSongs.some(f => f.id === s.id) ? accent : textDim,
                       fontSize: 14, cursor: 'pointer',
                     }}>♡</button>
                   </div>
@@ -253,10 +274,10 @@ export default function SearchPanel({ onSelect, accent, text, textDim, show, onC
         {/* Favorites */}
         {tab === 'favorites' && (
           <div>
-            {favorites.length === 0 ? (
+            {likedSongs.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 40, color: textDim }}>暂无收藏</div>
             ) : (
-              favorites.map((s, i) => (
+              likedSongs.map((s, i) => (
                 <div key={i} style={{
                   display: 'flex', alignItems: 'center', gap: 12,
                   padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.03)',
@@ -267,7 +288,7 @@ export default function SearchPanel({ onSelect, accent, text, textDim, show, onC
                     <div style={{ fontSize: 13, color: text }}>{s.name}</div>
                     <div style={{ fontSize: 11, color: textDim }}>{s.artist}</div>
                   </div>
-                  <button onClick={(e) => { e.stopPropagation(); toggleFavorite(s); }} style={{
+                  <button onClick={(e) => { e.stopPropagation(); onToggleLike(s); }} style={{
                     background: 'none', border: 'none', color: accent, fontSize: 14, cursor: 'pointer',
                   }}>❤</button>
                 </div>
@@ -287,7 +308,7 @@ export default function SearchPanel({ onSelect, accent, text, textDim, show, onC
                   display: 'flex', alignItems: 'center', gap: 12,
                   padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.03)',
                   cursor: 'pointer',
-                }} onClick={() => handleSelect(s)}>
+                }} onClick={() => handleRecentPlaySelect(s)}>
                   <span style={{ width: 24, fontSize: 11, color: textDim, textAlign: 'right' }}>{i + 1}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, color: text }}>{s.name}</div>

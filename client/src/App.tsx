@@ -350,10 +350,8 @@ export default function App() {
       localStorage.setItem('claudio_cover_mode', JSON.stringify(coverMode));
       localStorage.setItem('claudio_show_cover', JSON.stringify(showCover));
       localStorage.setItem('claudio_show_time', JSON.stringify(showTime));
-      if (queue.length > 0) {
-        localStorage.setItem('claudio_queue', JSON.stringify(queue));
-        localStorage.setItem('claudio_queue_idx', JSON.stringify(queueIdx));
-      }
+      localStorage.setItem('claudio_queue', JSON.stringify(queue));
+      localStorage.setItem('claudio_queue_idx', JSON.stringify(queueIdx));
       localStorage.setItem('claudio_favorites', JSON.stringify(likedSongs));
     } catch {}
   }, [scene, queue, queueIdx, likedSongs, coverMode, showCover, showTime]);
@@ -567,7 +565,17 @@ export default function App() {
   }, []);
 
   const handleSelectSong = useCallback((idx: number) => {
-    setQueueIdx(idx); setCurrentTime(0); play(queue[idx]); setShowQueue(false);
+    const song = queue[idx];
+    setQueueIdx(idx); setCurrentTime(0); play(song); setShowQueue(false);
+    // Write to recent plays
+    try {
+      const raw = localStorage.getItem('claudio_recent_plays');
+      const list: { id?: string; name: string; artist: string; album: string; timestamp: number }[] = raw ? JSON.parse(raw) : [];
+      const entry = { id: song.id, name: song.name, artist: song.artist, album: song.album || '', timestamp: Date.now() };
+      const filtered = list.filter(e => !(e.name === entry.name && e.artist === entry.artist));
+      const updated = [entry, ...filtered].slice(0, 20);
+      localStorage.setItem('claudio_recent_plays', JSON.stringify(updated));
+    } catch {}
   }, [queue, play, setCurrentTime]);
 
   // Play mode persistence
@@ -614,6 +622,13 @@ export default function App() {
       return exists ? prev.filter(s => s.id !== current.id) : [...prev, current];
     });
   }, [current]);
+
+  const handleToggleLike = useCallback((song: SongInfo) => {
+    setLikedSongs(prev => {
+      const exists = prev.some(s => s.id === song.id);
+      return exists ? prev.filter(s => s.id !== song.id) : [...prev, song];
+    });
+  }, []);
 
   // Touch gestures for mobile
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -1222,7 +1237,18 @@ export default function App() {
             return [...prev, song];
           });
           play(song);
+          // Write to recent plays
+          try {
+            const raw = localStorage.getItem('claudio_recent_plays');
+            const list: { id?: string; name: string; artist: string; album: string; timestamp: number }[] = raw ? JSON.parse(raw) : [];
+            const entry = { id: song.id, name: song.name, artist: song.artist, album: song.album || '', timestamp: Date.now() };
+            const filtered = list.filter(e => !(e.name === entry.name && e.artist === entry.artist));
+            const updated = [entry, ...filtered].slice(0, 20);
+            localStorage.setItem('claudio_recent_plays', JSON.stringify(updated));
+          } catch {}
         }}
+        likedSongs={likedSongs}
+        onToggleLike={handleToggleLike}
         accent={sc.accent} text={sc.text} textDim={sc.textDim}
       />
 
