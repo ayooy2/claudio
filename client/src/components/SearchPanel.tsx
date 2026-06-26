@@ -80,8 +80,8 @@ export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         setResult({ songs: data.songs || [], loading: false });
-      } catch (err: any) {
-        if (err.name !== 'AbortError') {
+      } catch (err: unknown) {
+        if (!(err instanceof Error && err.name === 'AbortError')) {
           setResult({ songs: [], loading: false });
         }
       }
@@ -146,7 +146,7 @@ export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent
       zIndex: 100, display: 'flex', flexDirection: 'column',
     }}>
       <style>{`
-        @keyframes pulse { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
+        @keyframes searchPulse { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
       `}</style>
       {/* Header */}
       <div style={{
@@ -233,7 +233,7 @@ export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent
             {result.loading && (
               <div style={{ textAlign: 'center', padding: 40, color: textDim }}>
                 <div style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
-                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: accent, animation: 'pulse 1s ease-in-out infinite' }} />
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: accent, animation: 'searchPulse 1s ease-in-out infinite' }} />
                   <div style={{ width: 6, height: 6, borderRadius: '50%', background: accent, animation: 'pulse 1s ease-in-out 0.2s infinite' }} />
                   <div style={{ width: 6, height: 6, borderRadius: '50%', background: accent, animation: 'pulse 1s ease-in-out 0.4s infinite' }} />
                 </div>

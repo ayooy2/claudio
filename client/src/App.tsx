@@ -477,7 +477,15 @@ export default function App() {
   const attachAudio = useCallback((el: HTMLAudioElement | null) => {
     audioRef.current = el;
     if (!el) return;
-    el.ontimeupdate = () => setCurrentTime(el.currentTime);
+    // 节流 ontimeupdate：每 250ms 才更新一次 state，减少重渲染频率
+    let lastTimeUpdate = 0;
+    el.ontimeupdate = () => {
+      const now = performance.now();
+      if (now - lastTimeUpdate >= 250) {
+        lastTimeUpdate = now;
+        setCurrentTime(el.currentTime);
+      }
+    };
     el.ondurationchange = () => setDuration(el.duration || 0);
     el.onplay = () => setIsPlaying(true);
     el.onpause = () => setIsPlaying(false);

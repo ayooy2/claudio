@@ -68,8 +68,8 @@ export function usePlayer() {
             setCurrent(prev => prev ? { ...prev, url, id: data.id || prev.id, cover: data.cover || prev.cover } : prev);
           }
           break;
-        } catch (e: any) {
-          if (e?.name === 'AbortError') break;
+        } catch (e: unknown) {
+          if (e instanceof Error && e.name === 'AbortError') break;
           console.warn(`获取URL失败 (attempt ${attempt + 1}):`, e);
           if (attempt < maxAttempts - 1) {
             await new Promise(r => setTimeout(r, 1000));
@@ -137,13 +137,13 @@ export function usePlayer() {
       await audio.play();
       setIsPlaying(true);
       setPlayError(null);
-    } catch (e: any) {
-      if (e?.name === 'AbortError') {
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name === 'AbortError') {
         // 新播放中断了旧播放，不算错误
         return;
       }
       // code=4 且有 URL 时，可能是 URL 过期，尝试强制重新获取
-      if (e?.message?.includes('code=4') && song.url) {
+      if (e instanceof Error && e.message?.includes('code=4') && song.url) {
         console.warn('媒体错误 code=4，尝试重新获取 URL...');
         try {
           const res = await fetch(apiUrl(`/api/song-url?id=${song.id}&force=true`));
@@ -170,9 +170,10 @@ export function usePlayer() {
           console.warn('重试失败:', retryErr);
         }
       }
-      console.warn('播放失败:', e?.message);
+      const errMsg = e instanceof Error ? e.message : '播放失败';
+      console.warn('播放失败:', errMsg);
       setIsPlaying(false);
-      setPlayError(e?.message || '播放失败');
+      setPlayError(errMsg);
     }
   }, []);
 
