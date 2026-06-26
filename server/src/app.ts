@@ -138,7 +138,7 @@ export function createApp() {
 
   // Get song URL by ID or by name+artist (with caching)
   app.get('/api/song-url', async (req, res) => {
-    const { id, name, artist, force } = req.query as { id?: string; name?: string; artist?: string; force?: string };
+    const { id, name, artist, force, br } = req.query as { id?: string; name?: string; artist?: string; force?: string; br?: string };
     try {
       let songId = id;
       let cover: string | null = null;
@@ -153,9 +153,10 @@ export function createApp() {
       }
       if (!songId) return res.json({ url: null, error: '未找到歌曲' });
 
-      const { url, isTrial } = await musicService.getSongUrl(songId, force === 'true');
+      const bitrate = br ? parseInt(br, 10) : undefined;
+      const { url, isTrial, br: actualBr } = await musicService.getSongUrl(songId, force === 'true', bitrate);
       const proxyUrl = url ? `/api/audio-proxy?url=${encodeURIComponent(url)}` : null;
-      res.json({ url: proxyUrl, isTrial, id: songId, cover });
+      res.json({ url: proxyUrl, isTrial, id: songId, cover, br: actualBr });
     } catch (err) {
       res.json({ url: null, error: String(err) });
     }

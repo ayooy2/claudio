@@ -199,20 +199,23 @@ export class MusicService {
     await this.getSongUrl(songId);
   }
 
-  async getSongUrl(songId: string, force = false): Promise<UrlResult & { isTrial: boolean }> {
+  async getSongUrl(songId: string, force = false, br?: number): Promise<UrlResult & { isTrial: boolean }> {
     if (config.mock.music) {
       return { success: true, mock: true, url: `${MOCK_AUDIO_BASE}${songId}.mp3`, br: 320000, isTrial: false };
     }
 
+    // Cache key includes bitrate when specified
+    const cacheKey = br ? `${songId}:${br}` : songId;
+
     // Cache check (song URLs expire faster) — skip if force=true
     if (!force) {
-      const cached = urlCache.get(songId);
+      const cached = urlCache.get(cacheKey);
       if (cached) {
-        log.debug(`URL 命中缓存: ${songId}`);
+        log.debug(`URL 命中缓存: ${cacheKey}`);
         return cached;
       }
     } else {
-      log.debug(`URL 强制刷新: ${songId}`);
+      log.debug(`URL 强制刷新: ${cacheKey}`);
     }
 
     // Rate limit
@@ -221,6 +224,7 @@ export class MusicService {
     try {
       const url = new URL('/song/url', config.netease.apiBase);
       url.searchParams.set('id', songId);
+      if (br) url.searchParams.set('br', String(br));
       if (config.netease.cookie) url.searchParams.set('cookie', config.netease.cookie);
 
       const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10_000) });
@@ -235,7 +239,7 @@ export class MusicService {
 
       // Cache if valid URL
       if (result.url) {
-        urlCache.set(songId, result, URL_CACHE_TTL);
+        urlCache.set(cacheKey, result, URL_CACHE_TTL);
       }
 
       return result;

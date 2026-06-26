@@ -14,7 +14,7 @@ export interface SongInfo {
   cover?: string | null;
 }
 
-export function usePlayer() {
+export function usePlayer(qualityRef?: React.RefObject<number>) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [current, setCurrent] = useState<SongInfo | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -57,8 +57,9 @@ export function usePlayer() {
       const maxAttempts = 2;
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
         try {
+          const brParam = qualityRef?.current ? `&br=${qualityRef.current}` : '';
           const res = await fetch(
-            `/api/song-url?name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(song.artist)}`,
+            `/api/song-url?name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(song.artist)}${brParam}`,
             { signal: abortCtrl.signal }
           );
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -146,7 +147,8 @@ export function usePlayer() {
       if (e instanceof Error && e.message?.includes('code=4') && song.url) {
         console.warn('媒体错误 code=4，尝试重新获取 URL...');
         try {
-          const res = await fetch(apiUrl(`/api/song-url?id=${song.id}&force=true`));
+          const brParam = qualityRef?.current ? `&br=${qualityRef.current}` : '';
+          const res = await fetch(apiUrl(`/api/song-url?id=${song.id}&force=true${brParam}`));
           const data = await res.json();
           if (data.url) {
             // Check if a newer play() has started during fetch

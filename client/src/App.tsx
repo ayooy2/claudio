@@ -344,15 +344,18 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [showCover, setShowCover] = useState(() => loadState('claudio_show_cover', true, isBoolean));
   const [showTime, setShowTime] = useState(() => loadState('claudio_show_time', true, isBoolean));
+  const [quality, setQuality] = useState(() => loadState('claudio_quality', 0, isNumber));
+  const qualityRef = useRef(quality);
 
   const { audioRef, current, isPlaying, isLoading, currentTime, duration, volume, volumeRef, isMuted,
-    play, playRef, togglePlay, toggleMute, setVolume, seek, setCurrentTime, setDuration, setIsPlaying, playError, clearError } = usePlayer();
+    play, playRef, togglePlay, toggleMute, setVolume, seek, setCurrentTime, setDuration, setIsPlaying, playError, clearError } = usePlayer(qualityRef);
   const { socket } = useSocket();
 
   // Refs for latest state (avoid stale closures)
   const queueRef = useRef(queue);
   const queueIdxRef = useRef(queueIdx);
   useEffect(() => { queueRef.current = queue; queueIdxRef.current = queueIdx; }, [queue, queueIdx]);
+  useEffect(() => { qualityRef.current = quality; }, [quality]);
 
   // Save display settings to localStorage
   useEffect(() => {
@@ -360,9 +363,10 @@ export default function App() {
       localStorage.setItem('claudio_scene', JSON.stringify(scene));
       localStorage.setItem('claudio_cover_mode', JSON.stringify(coverMode));
       localStorage.setItem('claudio_show_cover', JSON.stringify(showCover));
+      localStorage.setItem('claudio_quality', JSON.stringify(quality));
       localStorage.setItem('claudio_show_time', JSON.stringify(showTime));
     } catch {}
-  }, [scene, coverMode, showCover, showTime]);
+  }, [scene, coverMode, showCover, showTime, quality]);
 
   // Save queue to localStorage
   useEffect(() => {
@@ -530,7 +534,8 @@ export default function App() {
     const nextIdx = (queueIdx + 1) % queue.length;
     const nextSong = queue[nextIdx];
     if (nextSong && !nextSong.url) {
-      fetch(apiUrl(`/api/song-url?name=${encodeURIComponent(nextSong.name)}&artist=${encodeURIComponent(nextSong.artist)}`))
+      const brParam = qualityRef.current ? `&br=${qualityRef.current}` : '';
+      fetch(apiUrl(`/api/song-url?name=${encodeURIComponent(nextSong.name)}&artist=${encodeURIComponent(nextSong.artist)}${brParam}`))
         .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
         .then(data => {
           if (!cancelled && data.url) {
@@ -1343,6 +1348,32 @@ export default function App() {
                     }} />
                   </button>
                 </label>
+              </div>
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, color: sc.textDim, marginBottom: 10, letterSpacing: 0.5 }}>音质选择</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {([
+                  { value: 0, label: '标准', desc: '128k' },
+                  { value: 192000, label: '较高', desc: '192k' },
+                  { value: 320000, label: '极高', desc: '320k' },
+                  { value: 999000, label: '无损', desc: 'FLAC' },
+                ] as const).map(opt => (
+                  <button key={opt.value} onClick={() => setQuality(opt.value)} style={{
+                    padding: '8px 12px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                    background: quality === opt.value ? `${sc.accent}15` : 'rgba(255,255,255,0.04)',
+                    color: quality === opt.value ? sc.accent : sc.textDim,
+                    fontSize: 11, fontWeight: quality === opt.value ? 600 : 400,
+                    transition: 'all 0.2s ease',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                  }}>
+                    <span>{opt.label}</span>
+                    <span style={{ fontSize: 9, opacity: 0.6 }}>{opt.desc}</span>
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginTop: 6 }}>
+                高音质需要VIP，否则可能降级
               </div>
             </div>
             <div>
