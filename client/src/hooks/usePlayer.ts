@@ -71,7 +71,7 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
         try {
           const brParam = qualityRef?.current ? `&br=${qualityRef.current}` : '';
           const res = await fetch(
-            `/api/song-url?name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(song.artist)}${brParam}`,
+            apiUrl(`/api/song-url?name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(song.artist)}${brParam}`),
             { signal: abortCtrl.signal }
           );
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
