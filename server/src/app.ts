@@ -21,6 +21,26 @@ import { getStore } from './store/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Module-level cache for wyy.json
+let wyyCache: { mtime: number; songs: any[] } | null = null;
+const wyyPath = path.join(__dirname, '..', '..', 'wyy.json');
+
+async function readWyyJson(): Promise<any[]> {
+  try {
+    const stat = await fs.promises.stat(wyyPath);
+    const mtime = stat.mtimeMs;
+    if (wyyCache && wyyCache.mtime === mtime) {
+      return wyyCache.songs;
+    }
+    const raw = await fs.promises.readFile(wyyPath, 'utf-8');
+    const songs = JSON.parse(raw);
+    wyyCache = { mtime, songs };
+    return songs;
+  } catch {
+    return [];
+  }
+}
+
 export function createApp() {
   const app = express();
   const server = http.createServer(app);
@@ -37,24 +57,18 @@ export function createApp() {
 
   // ===== Music API =====
 
-  // Get playlist from wyy.json
-  app.get('/api/playlist', (_req, res) => {
-    const wyyPath = path.join(__dirname, '..', '..', 'wyy.json');
+  // Get playlist from wyy.json (async with mtime cache)
+  app.get('/api/playlist', async (_req, res) => {
     try {
-      if (fs.existsSync(wyyPath)) {
-        const songs = JSON.parse(fs.readFileSync(wyyPath, 'utf-8'));
-        res.json({ songs, total: songs.length });
-      } else {
-        res.json({ songs: [], total: 0 });
-      }
+      const songs = await readWyyJson();
+      res.json({ songs, total: songs.length });
     } catch { res.json({ songs: [], total: 0 }); }
   });
 
   // Get playlist songs (basic info only, no URL resolution)
   app.get('/api/playlist-resolved', async (_req, res) => {
-    const wyyPath = path.join(__dirname, '..', '..', 'wyy.json');
     try {
-      const raw = JSON.parse(fs.readFileSync(wyyPath, 'utf-8'));
+      const raw = await readWyyJson();
       // Return songs with basic info — URLs resolved on demand via /api/song-url
       const songs = raw.map((s: any, i: number) => ({
         id: `pl_${i}_${s.name}`,

@@ -16,15 +16,16 @@ export default function Dashboard() {
     activeScenes: 6, serverStatus: 'running', apiStatus: 'connected'
   });
   const [recentPlays, setRecentPlays] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // Load stats
     fetch(apiUrl('/api/playlist')).then(r => r.json()).then(data => {
       setStats(prev => ({ ...prev, totalSongs: data.total || 0 }));
-    }).catch(() => {});
+    }).catch((err) => { setError(`加载歌曲数据失败: ${err.message}`); });
 
     // Load recent plays
-    fetch(apiUrl('/api/plays/recent')).then(r => r.json()).then(setRecentPlays).catch(() => {});
+    fetch(apiUrl('/api/plays/recent')).then(r => r.json()).then(setRecentPlays).catch((err) => { setError(`加载播放记录失败: ${err.message}`); });
   }, []);
 
   const statCards = [
@@ -36,6 +37,16 @@ export default function Dashboard() {
 
   return (
     <div>
+      {error && (
+        <div style={{
+          padding: '12px 16px', marginBottom: 16, borderRadius: 8,
+          background: 'rgba(255,80,80,0.1)', border: '1px solid rgba(255,80,80,0.3)',
+          color: '#ff6666', fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <span>{error}</span>
+          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', color: '#ff6666', cursor: 'pointer', fontSize: 16 }}>&times;</button>
+        </div>
+      )}
       {/* System status */}
       <div style={{
         display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24,

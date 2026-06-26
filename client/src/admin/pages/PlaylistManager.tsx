@@ -15,9 +15,10 @@ export default function PlaylistManager() {
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDesc, setNewDesc] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(apiUrl('/api/playlists')).then(r => r.json()).then(setPlaylists).catch(() => {});
+    fetch(apiUrl('/api/playlists')).then(r => r.json()).then(setPlaylists).catch((err) => { setError(`加载歌单失败: ${err.message}`); });
   }, []);
 
   const handleCreate = () => {
@@ -38,6 +39,16 @@ export default function PlaylistManager() {
 
   return (
     <div>
+      {error && (
+        <div style={{
+          padding: '12px 16px', marginBottom: 16, borderRadius: 8,
+          background: 'rgba(255,80,80,0.1)', border: '1px solid rgba(255,80,80,0.3)',
+          color: '#ff6666', fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <span>{error}</span>
+          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', color: '#ff6666', cursor: 'pointer', fontSize: 16 }}>&times;</button>
+        </div>
+      )}
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>共 {playlists.length} 个歌单</div>

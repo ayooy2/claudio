@@ -65,7 +65,7 @@ export const config = {
   },
 
   brain: {
-    apiUrl: env('BRAIN_API_URL', 'https://api.deepseek.com/anthropic'),
+    apiUrl: env('BRAIN_API_URL', 'https://api.deepseek.com'),
     apiKey: env('BRAIN_API_KEY'),
     model: env('BRAIN_MODEL', 'deepseek-chat'),
   },
