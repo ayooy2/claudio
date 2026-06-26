@@ -1,4 +1,7 @@
 import { config } from '../../config.js';
+import { logger } from '../../common/logger.js';
+
+const log = logger.child('calendar');
 
 export interface CalendarEvent {
   summary: string;
@@ -14,6 +17,7 @@ export interface CalendarResult {
 export class CalendarService {
   async getTodayEvents(): Promise<CalendarResult> {
     if (config.mock.calendar) {
+      log.info('使用 mock 日历数据');
       const today = new Date().toISOString().slice(0, 10);
       return {
         mock: true,
@@ -27,10 +31,12 @@ export class CalendarService {
     // Real Feishu API
     const { appId, appSecret } = config.feishu;
     if (!appId || !appSecret) {
+      log.warn('飞书 appId/appSecret 未配置，返回空日历');
       return { mock: true, events: [] };
     }
 
     try {
+      log.info('正在获取飞书日历事件');
       const tokenRes = await fetch('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -51,8 +57,10 @@ export class CalendarService {
         start: e.start_time?.date_time ?? e.start_time?.date ?? '',
         end: e.end_time?.date_time ?? e.end_time?.date ?? '',
       }));
+      log.info(`获取到 ${events.length} 个日历事件`);
       return { mock: false, events };
-    } catch {
+    } catch (err) {
+      log.warn('飞书日历获取失败，回退到 mock 数据', err);
       return { mock: true, events: [] };
     }
   }

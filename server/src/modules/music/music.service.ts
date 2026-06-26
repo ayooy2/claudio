@@ -278,7 +278,7 @@ export class MusicService {
       rUrl.searchParams.set('id', songId);
       if (config.netease.cookie) rUrl.searchParams.set('cookie', config.netease.cookie);
 
-      const res = await fetch(rUrl.toString());
+      const res = await fetch(rUrl.toString(), { signal: AbortSignal.timeout(15_000) });
       const data = await res.json() as any;
       const songs: SongInfo[] = (data.data?.dailySongs ?? []).map((s: any) => ({
         id: String(s.id),

@@ -2,6 +2,9 @@ import { createApp } from './app.js';
 import { config } from './config.js';
 import { logger } from './common/logger.js';
 
+process.on('unhandledRejection', (reason) => { console.error('Unhandled rejection:', reason); });
+process.on('uncaughtException', (err) => { console.error('Uncaught exception:', err); });
+
 const log = logger.child('startup');
 
 async function checkNeteaseApi(): Promise<boolean> {

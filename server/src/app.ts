@@ -11,6 +11,9 @@ import { logger } from './common/logger.js';
 import { requestLogger, errorHandler, notFound } from './common/middleware.js';
 import { stateRouter } from './routes/state.router.js';
 import { prefsRouter } from './routes/prefs.router.js';
+import { chatRouter } from './routes/chat.router.js';
+import { tasteRouter } from './routes/taste.router.js';
+import { planRouter } from './routes/plan.router.js';
 import { schedulerService } from './modules/scheduler/scheduler.service.js';
 import { playerService } from './modules/player/player.service.js';
 import { musicService } from './modules/music/music.service.js';
@@ -282,7 +285,7 @@ export function createApp() {
         magic.toString('ascii', 4, 8) === 'ftyp' ||           // M4A/AAC
         magic.toString('ascii', 0, 4) === 'RIFF';             // WAV
       if (!isAudio) {
-        console.warn('音频代理：上游返回非音频数据，前12字节:', magic.toString('hex'));
+        logger.warn('音频代理：上游返回非音频数据，前12字节:', magic.toString('hex'));
         return res.status(502).json({ error: 'Upstream returned non-audio data' });
       }
 
@@ -309,7 +312,7 @@ export function createApp() {
         bytesWritten += value.length;
       }
       if (!isRangeResponse && bytesWritten < 1024) {
-        console.warn(`音频代理：响应体过小 (${bytesWritten} bytes)，可能无效`);
+        logger.warn(`音频代理：响应体过小 (${bytesWritten} bytes)，可能无效`);
       }
       res.end();
     } catch (err) {
@@ -317,7 +320,7 @@ export function createApp() {
         res.status(502).json({ error: 'Audio proxy error' });
       } else {
         // 响应头已发送，只能结束响应
-        console.error('音频代理：流式传输中断', err);
+        logger.error('音频代理：流式传输中断', err);
         res.end();
       }
     }
@@ -326,6 +329,9 @@ export function createApp() {
   // ===== State & Prefs =====
   app.use('/api', stateRouter);
   app.use('/api/prefs', prefsRouter);
+  app.use('/api', chatRouter);
+  app.use('/api', tasteRouter);
+  app.use('/api', planRouter);
 
   // ===== SPA fallback =====
   app.get('*', (_req, res, next) => {
