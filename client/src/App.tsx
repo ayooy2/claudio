@@ -699,6 +699,8 @@ export default function App() {
 
   const sc = SCENE_CONFIG[scene];
   const pct = duration > 0 ? (currentTime / duration) * 100 : 0;
+  // 隐藏元素计数：用于三档自适应布局
+  const hc = useMemo(() => (showCover ? 0 : 1) + (showTime ? 0 : 1), [showCover, showTime]);
 
   return (
     <div
@@ -910,7 +912,7 @@ export default function App() {
         </div>
 
         {/* Now Playing Info — 三档自适应：都显示/少一个/都隐藏 */}
-        {(() => { const hc = (showCover ? 0 : 1) + (showTime ? 0 : 1); return current && (
+        {current && (
           <div style={{
             marginTop: [10, 14, 20][hc],
             textAlign: 'center',
@@ -931,10 +933,10 @@ export default function App() {
               transition: 'font-size 0.5s cubic-bezier(0.4,0,0.2,1)',
             }}>{current.artist}</div>
           </div>
-        ); })()}
+        )}
 
         {/* Inline Lyrics Preview — 三档自适应 */}
-        {(() => { const hc = (showCover ? 0 : 1) + (showTime ? 0 : 1); return current && lyrics.length > 0 && currentLyricIndex >= 0 && (
+        {current && lyrics.length > 0 && currentLyricIndex >= 0 && (
           <div style={{
             marginTop: [10, 14, 18][hc],
             textAlign: 'center',
@@ -962,10 +964,10 @@ export default function App() {
               </div>
             )}
           </div>
-        ); })()}
+        )}
 
         {/* Audio Visualizer — 自适应间距 */}
-        {(() => { const hc = (showCover ? 0 : 1) + (showTime ? 0 : 1); return isPlaying && (
+        {isPlaying && (
           <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 24, marginTop: [12, 16, 20][hc], transition: 'margin-top 0.5s ease' }}>
             {[0, 1, 2, 3, 4, 5, 6].map(i => (
               <div key={i} style={{
@@ -976,7 +978,7 @@ export default function App() {
               }} />
             ))}
           </div>
-        ); })()}
+        )}
 
         {/* Placeholder when no song */}
         {!current && (
