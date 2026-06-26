@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect, useMemo, memo } from 'react';
 import { usePlayer, type SongInfo } from './hooks/usePlayer.js';
 import { useSocket } from './hooks/useSocket.js';
 import SearchPanel from './components/SearchPanel.js';
+import { IconQueue, IconPrev, IconNext, IconPlay, IconPause, IconLoading, IconHeart, IconLyrics, IconSearch, IconSettings, IconHelp, IconVolume, IconSequence, IconShuffle, IconLoop } from './components/Icons.js';
 import { apiUrl } from './lib/api.js';
 
 // ===== LocalStorage helpers =====
@@ -996,7 +997,7 @@ export default function App() {
               display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
               opacity: 0.5, transition: 'opacity 0.2s',
             }} onMouseEnter={e => e.currentTarget.style.opacity = '1'} onMouseLeave={e => e.currentTarget.style.opacity = '0.5'}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              <IconQueue />
             </button>
 
             {/* Prev */}
@@ -1006,7 +1007,7 @@ export default function App() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               transition: 'all 0.2s ease',
             }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+              <IconPrev />
             </button>
 
             {/* Play/Pause */}
@@ -1017,13 +1018,7 @@ export default function App() {
               transition: 'all 0.2s ease', boxShadow: `0 0 16px ${sc.accent}15`,
               opacity: isLoading ? 0.6 : 1,
             }}>
-              {isLoading ? (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: 'spin 1s linear infinite' }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-              ) : isPlaying ? (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
-              ) : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-              )}
+              {isLoading ? <IconLoading /> : isPlaying ? <IconPause /> : <IconPlay />}
             </button>
 
             {/* Next */}
@@ -1033,7 +1028,7 @@ export default function App() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               transition: 'all 0.2s ease',
             }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+              <IconNext />
             </button>
           </div>
 
@@ -1079,7 +1074,7 @@ export default function App() {
               display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
               transition: 'all 0.2s ease',
             }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill={current && liked.has(current.id) ? '#ff6b8a' : 'none'} stroke={current && liked.has(current.id) ? '#ff6b8a' : sc.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              <IconHeart filled={current ? liked.has(current.id) : false} />
             </button>
 
             {/* Lyrics */}
@@ -1089,7 +1084,7 @@ export default function App() {
               cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
               transition: 'all 0.2s ease',
             }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={showLyrics ? sc.accent : sc.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 10h12M4 14h16M4 18h8"/></svg>
+              <IconLyrics active={showLyrics} />
             </button>
 
             {/* Play Mode */}
@@ -1098,13 +1093,7 @@ export default function App() {
               cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
               transition: 'all 0.2s ease',
             }} title={playMode === 'sequence' ? '顺序播放' : playMode === 'shuffle' ? '随机播放' : '列表循环'}>
-              {playMode === 'sequence' ? (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={sc.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>
-              ) : playMode === 'shuffle' ? (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={sc.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
-              ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={sc.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-              )}
+              {playMode === 'sequence' ? <IconSequence /> : playMode === 'shuffle' ? <IconShuffle /> : <IconLoop />}
             </button>
 
             {/* Volume */}
@@ -1114,18 +1103,11 @@ export default function App() {
                 background: 'none', border: 'none', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
               }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isMuted ? sc.accent : sc.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  {isMuted || volume === 0 ? (
-                    <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></>
-                  ) : volume < 0.5 ? (
-                    <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></>
-                  ) : (
-                    <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></>
-                  )}
-                </svg>
+                <IconVolume muted={isMuted || volume === 0} low={volume < 0.5} />
               </button>
               <input type="range" min={0} max={100} value={isMuted ? 0 : Math.round(volume * 100)}
                 onChange={e => setVolume(Number(e.target.value) / 100)}
+                aria-label="音量"
                 style={{
                   width: 56, accentColor: sc.accent, height: 2,
                   opacity: volumeVisible ? 0.8 : 0.3, transition: 'opacity 0.3s',
