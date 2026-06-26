@@ -350,12 +350,33 @@ export default function App() {
   const { audioRef, current, isPlaying, isLoading, currentTime, duration, volume, volumeRef, isMuted,
     play, playRef, togglePlay, toggleMute, setVolume, seek, setCurrentTime, setDuration, setIsPlaying, playError, clearError } = usePlayer(qualityRef);
   const { socket } = useSocket();
+  const [socketMsg, setSocketMsg] = useState<string | null>(null);
+  const socketMsgTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Refs for latest state (avoid stale closures)
   const queueRef = useRef(queue);
   const queueIdxRef = useRef(queueIdx);
   useEffect(() => { queueRef.current = queue; queueIdxRef.current = queueIdx; }, [queue, queueIdx]);
   useEffect(() => { qualityRef.current = quality; }, [quality]);
+
+  // Socket.IO event listeners
+  useEffect(() => {
+    if (!socket) return;
+    const showMsg = (msg: string) => {
+      setSocketMsg(msg);
+      if (socketMsgTimerRef.current) clearTimeout(socketMsgTimerRef.current);
+      socketMsgTimerRef.current = setTimeout(() => { setSocketMsg(null); socketMsgTimerRef.current = null; }, 5000);
+    };
+    const onServerEvent = (evt: { type?: string; event?: string; data?: { message?: string; silent?: boolean } }) => {
+      if (evt.data?.silent) return; // skip background mood checks
+      if (evt.data?.message) showMsg(evt.data.message);
+    };
+    socket.on('server_event', onServerEvent);
+    return () => {
+      socket.off('server_event', onServerEvent);
+      if (socketMsgTimerRef.current) { clearTimeout(socketMsgTimerRef.current); socketMsgTimerRef.current = null; }
+    };
+  }, [socket]);
 
   // Save display settings to localStorage
   useEffect(() => {
@@ -1419,6 +1440,21 @@ export default function App() {
           boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
         }}>
           ⚠ {playError}（点击关闭）
+        </div>
+      )}
+
+      {/* 调度器消息 */}
+      {socketMsg && (
+        <div onClick={() => { setSocketMsg(null); if (socketMsgTimerRef.current) { clearTimeout(socketMsgTimerRef.current); socketMsgTimerRef.current = null; } }} role="status" aria-live="polite" style={{
+          position: 'fixed', bottom: playError ? 145 : 100, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(99,102,241,0.9)', backdropFilter: 'blur(8px)',
+          padding: '8px 20px', borderRadius: 20, zIndex: 200,
+          color: '#fff', fontSize: 12, cursor: 'pointer',
+          animation: 'fadeIn 0.3s ease',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+          maxWidth: '80vw', textAlign: 'center',
+        }}>
+          🎵 {socketMsg}（点击关闭）
         </div>
       )}
 

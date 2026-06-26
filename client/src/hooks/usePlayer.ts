@@ -1,6 +1,18 @@
 import { useRef, useState, useCallback } from 'react';
 import { apiUrl } from '../lib/api.js';
 
+// iOS Safari autoplay unlock — lazy AudioContext that resumes on first play()
+let _audioCtx: AudioContext | null = null;
+async function ensureAudioReady(): Promise<void> {
+  try {
+    if (!_audioCtx) {
+      const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (AC) _audioCtx = new AC();
+    }
+    if (_audioCtx?.state === 'suspended') await _audioCtx.resume();
+  } catch { /* non-critical */ }
+}
+
 export interface SongInfo {
   id: string;
   name: string;
@@ -135,6 +147,7 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
       // Check again after await — a newer play() may have started
       if (playSeqRef.current !== seq) return;
 
+      await ensureAudioReady();
       await audio.play();
       setIsPlaying(true);
       setPlayError(null);
@@ -167,6 +180,7 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
             });
             // Check again after await
             if (playSeqRef.current !== seq) return;
+            await ensureAudioReady();
             await a.play();
             setIsPlaying(true);
             setPlayError(null);
@@ -190,7 +204,7 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
     const audio = audioRef.current;
     if (!audio || !audio.src) return;
     if (audio.paused) {
-      audio.play().then(() => setIsPlaying(true)).catch(() => {});
+      ensureAudioReady().then(() => audio.play()).then(() => setIsPlaying(true)).catch(() => {});
     } else {
       audio.pause();
       setIsPlaying(false);
