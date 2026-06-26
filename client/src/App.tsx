@@ -5,9 +5,21 @@ import SearchPanel from './components/SearchPanel.js';
 import { apiUrl } from './lib/api.js';
 
 // ===== LocalStorage helpers =====
-function loadState<T>(key: string, fallback: T): T {
-  try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : fallback; } catch { return fallback; }
+function loadState<T>(key: string, fallback: T, validate?: (v: unknown) => v is T): T {
+  try {
+    const s = localStorage.getItem(key);
+    if (!s) return fallback;
+    const parsed: unknown = JSON.parse(s);
+    return validate ? (validate(parsed) ? parsed : fallback) : (parsed as T);
+  } catch { return fallback; }
 }
+
+// Type validators
+const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every(i => typeof i === 'string');
+const isSongInfoArray = (v: unknown): v is SongInfo[] =>
+  Array.isArray(v) && (v.length === 0 || (typeof v[0] === 'object' && v[0] !== null && 'id' in v[0] && 'name' in v[0]));
+const isBoolean = (v: unknown): v is boolean => typeof v === 'boolean';
+const isNumber = (v: unknown): v is number => typeof v === 'number' && !isNaN(v);
 
 // ====================== Constants ======================
 const DOTS: Record<string, number[][]> = {
@@ -313,13 +325,13 @@ export default function App() {
     return (saved in SCENE_CONFIG ? saved : 'starry') as Scene;
   });
   const [sceneChanging, setSceneChanging] = useState(false);
-  const [queue, setQueue] = useState<SongInfo[]>(() => loadState('claudio_queue', []));
-  const [queueIdx, setQueueIdx] = useState(() => loadState('claudio_queue_idx', -1));
+  const [queue, setQueue] = useState<SongInfo[]>(() => loadState('claudio_queue', [], isSongInfoArray));
+  const [queueIdx, setQueueIdx] = useState(() => loadState('claudio_queue_idx', -1, isNumber));
   const [showQueue, setShowQueue] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   // 收藏数据格式统一为 SongInfo[]（与 SearchPanel 一致）
-  const [likedSongs, setLikedSongs] = useState<SongInfo[]>(() => loadState('claudio_favorites', []));
+  const [likedSongs, setLikedSongs] = useState<SongInfo[]>(() => loadState('claudio_favorites', [], isSongInfoArray));
   const liked = useMemo(() => new Set(likedSongs.map(s => s.id)), [likedSongs]);
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
   const [volumeVisible, setVolumeVisible] = useState(false);
@@ -330,8 +342,8 @@ export default function App() {
   const [coverMode, setCoverMode] = useState<'vinyl' | 'fullcover'>(() => loadState('claudio_cover_mode', 'vinyl'));
   const [showSettings, setShowSettings] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [showCover, setShowCover] = useState(() => loadState('claudio_show_cover', true));
-  const [showTime, setShowTime] = useState(() => loadState('claudio_show_time', true));
+  const [showCover, setShowCover] = useState(() => loadState('claudio_show_cover', true, isBoolean));
+  const [showTime, setShowTime] = useState(() => loadState('claudio_show_time', true, isBoolean));
 
   const { audioRef, current, isPlaying, isLoading, currentTime, duration, volume, volumeRef, isMuted,
     play, playRef, togglePlay, toggleMute, setVolume, seek, setCurrentTime, setDuration, setIsPlaying, playError, clearError } = usePlayer();
