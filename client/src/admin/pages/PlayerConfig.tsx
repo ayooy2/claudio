@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { apiUrl } from '../../lib/api.js';
 
 interface PlayerSettings {
   siteName: string;
@@ -33,15 +34,47 @@ const DEFAULT_SETTINGS: PlayerSettings = {
 export default function PlayerConfig() {
   const [settings, setSettings] = useState<PlayerSettings>(DEFAULT_SETTINGS);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load prefs from server on mount
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetch(apiUrl('/api/prefs'), { signal: ctrl.signal }).then(r => r.json()).then(prefs => {
+      if (prefs && typeof prefs === 'object') {
+        setSettings(prev => ({
+          ...prev,
+          defaultVolume: prefs.volume ? Math.round(parseFloat(prefs.volume) * 100) : prev.defaultVolume,
+          autoPlay: prefs.auto_play !== 'false',
+        }));
+      }
+    }).catch(() => {});
+    return () => ctrl.abort();
+  }, []);
 
   const update = (key: keyof PlayerSettings, value: string | number | boolean) => {
     setSettings(prev => ({ ...prev, [key]: value }));
     setSaved(false);
   };
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const handleSave = async () => {
+    try {
+      const updates = [
+        { key: 'volume', value: String(settings.defaultVolume / 100) },
+        { key: 'auto_play', value: String(settings.autoPlay) },
+      ];
+      await Promise.all(updates.map(({ key, value }) =>
+        fetch(apiUrl('/api/prefs'), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, value }),
+        })
+      ));
+      setSaved(true);
+      setError(null);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      setError(`保存失败: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
 
   type SettingItem =
@@ -139,6 +172,18 @@ export default function PlayerConfig() {
           </div>
         </div>
       ))}
+
+      {/* Error */}
+      {error && (
+        <div style={{
+          padding: '12px 16px', marginBottom: 16, borderRadius: 8,
+          background: 'rgba(255,80,80,0.1)', border: '1px solid rgba(255,80,80,0.3)',
+          color: '#ff6666', fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <span>{error}</span>
+          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', color: '#ff6666', cursor: 'pointer', fontSize: 16 }}>&times;</button>
+        </div>
+      )}
 
       {/* Save button */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>

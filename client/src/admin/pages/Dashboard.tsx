@@ -33,7 +33,18 @@ export default function Dashboard() {
       if (err.name !== 'AbortError') setErrors(prev => [...prev, `加载歌曲数据失败: ${err.message}`]);
     });
 
-    fetch(apiUrl('/api/plays/recent'), { signal: ctrl.signal }).then(r => r.json()).then(setRecentPlays).catch((err) => {
+    fetch(apiUrl('/api/playlists'), { signal: ctrl.signal }).then(r => r.json()).then(data => {
+      setStats(prev => ({ ...prev, totalPlaylists: Array.isArray(data) ? data.length : 0 }));
+    }).catch((err) => {
+      if (err.name !== 'AbortError') setErrors(prev => [...prev, `加载歌单数据失败: ${err.message}`]);
+    });
+
+    fetch(apiUrl('/api/plays/recent?limit=100'), { signal: ctrl.signal }).then(r => r.json()).then(data => {
+      if (Array.isArray(data)) {
+        setRecentPlays(data.slice(0, 20));
+        setStats(prev => ({ ...prev, totalPlays: data.length }));
+      }
+    }).catch((err) => {
       if (err.name !== 'AbortError') setErrors(prev => [...prev, `加载播放记录失败: ${err.message}`]);
     });
 
