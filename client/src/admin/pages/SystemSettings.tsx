@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 export default function SystemSettings() {
   const [apiConfig, setApiConfig] = useState({
@@ -16,16 +16,22 @@ export default function SystemSettings() {
   });
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const msgTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (msgTimerRef.current) clearTimeout(msgTimerRef.current); }, []);
+
+  const showTempMessage = (type: 'success' | 'error', text: string) => {
+    setMessage({ type, text });
+    if (msgTimerRef.current) clearTimeout(msgTimerRef.current);
+    msgTimerRef.current = setTimeout(() => { setMessage(null); msgTimerRef.current = null; }, 3000);
+  };
 
   const handleClearCache = () => {
     try {
       const keys = Object.keys(localStorage).filter(k => k.startsWith('claudio_'));
       keys.forEach(k => localStorage.removeItem(k));
-      setMessage({ type: 'success', text: `已清理 ${keys.length} 个缓存项` });
-      setTimeout(() => setMessage(null), 3000);
+      showTempMessage('success', `已清理 ${keys.length} 个缓存项`);
     } catch {
-      setMessage({ type: 'error', text: '清理缓存失败' });
-      setTimeout(() => setMessage(null), 3000);
+      showTempMessage('error', '清理缓存失败');
     }
   };
 
@@ -40,11 +46,9 @@ export default function SystemSettings() {
       const a = document.createElement('a');
       a.href = url; a.download = `claudio-config-${new Date().toISOString().slice(0, 10)}.json`;
       a.click(); URL.revokeObjectURL(url);
-      setMessage({ type: 'success', text: '配置已导出' });
-      setTimeout(() => setMessage(null), 3000);
+      showTempMessage('success', '配置已导出');
     } catch {
-      setMessage({ type: 'error', text: '导出配置失败' });
-      setTimeout(() => setMessage(null), 3000);
+      showTempMessage('error', '导出配置失败');
     }
   };
 

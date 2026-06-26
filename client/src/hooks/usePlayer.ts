@@ -149,6 +149,8 @@ export function usePlayer() {
           const res = await fetch(apiUrl(`/api/song-url?id=${song.id}&force=true`));
           const data = await res.json();
           if (data.url) {
+            // Check if a newer play() has started during fetch
+            if (playSeqRef.current !== seq) return;
             // 更新 song 的 url 和 queue 中的引用
             song.url = data.url;
             const a = audioRef.current!;
@@ -161,6 +163,8 @@ export function usePlayer() {
               a.addEventListener('error', onErr2, { once: true });
               setTimeout(() => { a.removeEventListener('canplay', onOk); a.removeEventListener('error', onErr2); reject(new Error('重试超时')); }, 10000);
             });
+            // Check again after await
+            if (playSeqRef.current !== seq) return;
             await a.play();
             setIsPlaying(true);
             setPlayError(null);

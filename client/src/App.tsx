@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useMemo, memo } from 'react';
 import { usePlayer, type SongInfo } from './hooks/usePlayer.js';
 import { useSocket } from './hooks/useSocket.js';
 import SearchPanel from './components/SearchPanel.js';
-import { IconQueue, IconPrev, IconNext, IconPlay, IconPause, IconLoading, IconHeart, IconLyrics, IconSearch, IconSettings, IconHelp, IconVolume, IconSequence, IconShuffle, IconLoop } from './components/Icons.js';
+import { IconQueue, IconPrev, IconNext, IconPlay, IconPause, IconLoading, IconHeart, IconLyrics, IconVolume, IconSequence, IconShuffle, IconLoop } from './components/Icons.js';
 import { apiUrl } from './lib/api.js';
 
 // ===== LocalStorage helpers =====
@@ -16,7 +16,6 @@ function loadState<T>(key: string, fallback: T, validate?: (v: unknown) => v is 
 }
 
 // Type validators
-const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every(i => typeof i === 'string');
 const isSongInfoArray = (v: unknown): v is SongInfo[] =>
   Array.isArray(v) && (v.length === 0 || (typeof v[0] === 'object' && v[0] !== null && 'id' in v[0] && 'name' in v[0]));
 const isBoolean = (v: unknown): v is boolean => typeof v === 'boolean';
@@ -338,9 +337,7 @@ export default function App() {
   const [volumeVisible, setVolumeVisible] = useState(false);
   const [comment, setComment] = useState<{ content: string; nickname: string; likedCount: number } | null>(null);
   const [playMode, setPlayMode] = useState<'sequence' | 'loop' | 'shuffle'>(() => loadState('claudio_play_mode', 'sequence'));
-  const [playedIndices, setPlayedIndices] = useState<Set<number>>(new Set());
-  const playedIndicesRef = useRef(playedIndices);
-  useEffect(() => { playedIndicesRef.current = playedIndices; }, [playedIndices]);
+  const playedIndicesRef = useRef(new Set<number>());
   const [bgLoaded, setBgLoaded] = useState(false);
   const [coverMode, setCoverMode] = useState<'vinyl' | 'fullcover'>(() => loadState('claudio_cover_mode', 'vinyl'));
   const [showSettings, setShowSettings] = useState(false);
@@ -355,8 +352,7 @@ export default function App() {
   // Refs for latest state (avoid stale closures)
   const queueRef = useRef(queue);
   const queueIdxRef = useRef(queueIdx);
-  useEffect(() => { queueRef.current = queue; }, [queue]);
-  useEffect(() => { queueIdxRef.current = queueIdx; }, [queueIdx]);
+  useEffect(() => { queueRef.current = queue; queueIdxRef.current = queueIdx; }, [queue, queueIdx]);
 
   // Save display settings to localStorage
   useEffect(() => {
@@ -488,7 +484,7 @@ export default function App() {
     else setScene('neon');
   }, []);
 
-  // Audio setup — 同步播放状态、错误处理、音量
+  // Audio setup — 同步播放状态、错误处理、音量、ended
   const attachAudio = useCallback((el: HTMLAudioElement | null) => {
     audioRef.current = el;
     if (!el) return;
@@ -508,13 +504,7 @@ export default function App() {
       console.warn('Audio error:', el.error);
       setIsPlaying(false);
     };
-    el.volume = volumeRef.current;
-  }, []);
-
-  // Separate effect for onended — uses refs for latest state, re-attaches when audioRef populated
-  useEffect(() => {
-    const el = audioRef.current;
-    if (!el) return;
+    // onended uses refs for latest state (single coordination path)
     el.onended = () => {
       const q = queueRef.current;
       const idx = queueIdxRef.current;
@@ -523,14 +513,15 @@ export default function App() {
         setQueueIdx(n);
         setCurrentTime(0);
         play(q[n]).catch(e => {
-          console.warn('自动播放下一首失败:', e?.message);
+          console.warn('自动播放下一首失败:', e instanceof Error ? e.message : e);
           setIsPlaying(false);
         });
       } else {
         setIsPlaying(false);
       }
     };
-  }, [audioRef.current]);
+    el.volume = volumeRef.current;
+  }, []);
 
   // Pre-fetch next song URL
   useEffect(() => {
@@ -572,18 +563,18 @@ export default function App() {
       }
       return;
     } else if (playMode === 'shuffle') {
-      // Use ref to avoid stale closure on rapid calls
+      // ref-only (never rendered), write directly
       const currentPlayed = playedIndicesRef.current;
       const resetNeeded = currentPlayed.size >= queue.length;
+      if (resetNeeded) playedIndicesRef.current = new Set();
       const effectivePlayed = resetNeeded ? new Set<number>() : currentPlayed;
-      if (resetNeeded) setPlayedIndices(new Set());
       const available = queue.map((_, i) => i).filter(i => !effectivePlayed.has(i) && i !== queueIdx);
       if (available.length === 0) {
         n = Math.floor(Math.random() * queue.length);
       } else {
         n = available[Math.floor(Math.random() * available.length)];
       }
-      setPlayedIndices(prev => new Set([...prev, n]));
+      playedIndicesRef.current = new Set([...playedIndicesRef.current, n]);
     } else {
       n = (queueIdx + 1) % queue.length;
     }
@@ -594,7 +585,7 @@ export default function App() {
     if (queue.length <= 1) return;
     const p = queueIdx <= 0 ? queue.length - 1 : queueIdx - 1;
     setQueueIdx(p); setCurrentTime(0); play(queue[p]);
-  }, [queue, queueIdx, play, setCurrentTime, playMode]);
+  }, [queue, queueIdx, play, setCurrentTime]);
 
   const handleSeek = useCallback((pct: number) => {
     if (audioRef.current) audioRef.current.currentTime = (audioRef.current.duration || 0) * pct;
@@ -624,10 +615,12 @@ export default function App() {
   const handlePrevRef = useRef(handlePrev);
   const handleNextRef = useRef(handleNext);
   const toggleMuteRef = useRef(toggleMute);
-  useEffect(() => { handleToggleRef.current = handleToggle; }, [handleToggle]);
-  useEffect(() => { handlePrevRef.current = handlePrev; }, [handlePrev]);
-  useEffect(() => { handleNextRef.current = handleNext; }, [handleNext]);
-  useEffect(() => { toggleMuteRef.current = toggleMute; }, [toggleMute]);
+  useEffect(() => {
+    handleToggleRef.current = handleToggle;
+    handlePrevRef.current = handlePrev;
+    handleNextRef.current = handleNext;
+    toggleMuteRef.current = toggleMute;
+  });
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -700,7 +693,7 @@ export default function App() {
   const sc = SCENE_CONFIG[scene];
   const pct = duration > 0 ? (currentTime / duration) * 100 : 0;
   // 隐藏元素计数：用于三档自适应布局
-  const hc = useMemo(() => (showCover ? 0 : 1) + (showTime ? 0 : 1), [showCover, showTime]);
+  const hc = (showCover ? 0 : 1) + (showTime ? 0 : 1);
 
   return (
     <div

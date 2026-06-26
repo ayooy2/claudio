@@ -234,8 +234,8 @@ export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent
               <div style={{ textAlign: 'center', padding: 40, color: textDim }}>
                 <div style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
                   <div style={{ width: 6, height: 6, borderRadius: '50%', background: accent, animation: 'searchPulse 1s ease-in-out infinite' }} />
-                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: accent, animation: 'pulse 1s ease-in-out 0.2s infinite' }} />
-                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: accent, animation: 'pulse 1s ease-in-out 0.4s infinite' }} />
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: accent, animation: 'searchPulse 1s ease-in-out 0.2s infinite' }} />
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: accent, animation: 'searchPulse 1s ease-in-out 0.4s infinite' }} />
                 </div>
                 <div style={{ marginTop: 8, fontSize: 12 }}>搜索中...</div>
               </div>
