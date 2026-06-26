@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 interface LyricLine {
-  time: string;
+  time: number;
   text: string;
 }
 
@@ -29,13 +29,22 @@ export default function LyricsManager() {
     const result: LyricLine[] = [];
 
     for (const line of lines) {
-      const match = line.match(/\[(\d+:\d+\.\d+)\](.*)/);
+      const match = line.match(/\[(\d+):(\d+)\.(\d+)\](.*)/);
       if (match) {
-        result.push({ time: match[1], text: match[2].trim() });
+        const minutes = parseInt(match[1], 10);
+        const seconds = parseInt(match[2], 10);
+        const ms = parseInt(match[3], 10);
+        const time = minutes * 60 + seconds + ms / (match[3].length === 2 ? 100 : 1000);
+        result.push({ time, text: match[4].trim() });
       }
     }
 
     return result;
+  };
+
+  const fmtTime = (s: number): string => {
+    if (!s || isNaN(s)) return '0:00';
+    return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
   };
 
   const handleSave = () => {
@@ -85,7 +94,7 @@ export default function LyricsManager() {
                 display: 'flex', gap: 12, padding: '8px 0',
                 borderBottom: '1px solid rgba(255,255,255,0.03)',
               }}>
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace', minWidth: 60 }}>{line.time}</span>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace', minWidth: 60 }}>{fmtTime(line.time)}</span>
                 <input
                   type="text" value={line.text}
                   onChange={e => {

@@ -34,43 +34,46 @@ export default function PlayerConfig() {
   const [settings, setSettings] = useState<PlayerSettings>(DEFAULT_SETTINGS);
   const [saved, setSaved] = useState(false);
 
-  const update = (key: keyof PlayerSettings, value: any) => {
+  const update = (key: keyof PlayerSettings, value: string | number | boolean) => {
     setSettings(prev => ({ ...prev, [key]: value }));
     setSaved(false);
   };
 
   const handleSave = () => {
-    // Save to API
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
 
-  const sections = [
+  type SettingItem =
+    | { key: keyof PlayerSettings; label: string; type: 'text' | 'color' | 'toggle' }
+    | { key: keyof PlayerSettings; label: string; type: 'range'; min: number; max: number };
+
+  const sections: { title: string; items: SettingItem[] }[] = [
     {
       title: '基础配置',
       items: [
-        { key: 'siteName' as const, label: '站点名称', type: 'text' },
-        { key: 'defaultVolume' as const, label: '默认音量', type: 'range', min: 0, max: 100 },
-        { key: 'autoPlay' as const, label: '自动播放', type: 'toggle' },
+        { key: 'siteName', label: '站点名称', type: 'text' },
+        { key: 'defaultVolume', label: '默认音量', type: 'range', min: 0, max: 100 },
+        { key: 'autoPlay', label: '自动播放', type: 'toggle' },
       ],
     },
     {
       title: '功能开关',
       items: [
-        { key: 'showLyrics' as const, label: '显示歌词', type: 'toggle' },
-        { key: 'showQueue' as const, label: '显示队列', type: 'toggle' },
-        { key: 'showLike' as const, label: '显示收藏', type: 'toggle' },
+        { key: 'showLyrics', label: '显示歌词', type: 'toggle' },
+        { key: 'showQueue', label: '显示队列', type: 'toggle' },
+        { key: 'showLike', label: '显示收藏', type: 'toggle' },
       ],
     },
     {
       title: '外观定制',
       items: [
-        { key: 'clockSize' as const, label: '时钟大小', type: 'range', min: 8, max: 24 },
-        { key: 'clockColor' as const, label: '时钟颜色', type: 'color' },
-        { key: 'progressBarHeight' as const, label: '进度条高度', type: 'range', min: 2, max: 8 },
-        { key: 'progressBarColor' as const, label: '进度条颜色', type: 'color' },
-        { key: 'buttonRadius' as const, label: '按钮圆角', type: 'range', min: 0, max: 50 },
-        { key: 'buttonOpacity' as const, label: '按钮透明度', type: 'range', min: 20, max: 100 },
+        { key: 'clockSize', label: '时钟大小', type: 'range', min: 8, max: 24 },
+        { key: 'clockColor', label: '时钟颜色', type: 'color' },
+        { key: 'progressBarHeight', label: '进度条高度', type: 'range', min: 2, max: 8 },
+        { key: 'progressBarColor', label: '进度条颜色', type: 'color' },
+        { key: 'buttonRadius', label: '按钮圆角', type: 'range', min: 0, max: 50 },
+        { key: 'buttonOpacity', label: '按钮透明度', type: 'range', min: 20, max: 100 },
       ],
     },
   ];
@@ -104,7 +107,7 @@ export default function PlayerConfig() {
                 {item.type === 'range' && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <input
-                      type="range" min={(item as any).min || 0} max={(item as any).max || 100} value={settings[item.key] as number}
+                      type="range" min={item.min} max={item.max} value={settings[item.key] as number}
                       onChange={e => update(item.key, Number(e.target.value))}
                       style={{ width: 120, accentColor: '#3f6' }}
                     />

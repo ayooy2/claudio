@@ -18,15 +18,19 @@ export default function PlaylistManager() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(apiUrl('/api/playlists')).then(r => r.json()).then(setPlaylists).catch((err) => { setError(`加载歌单失败: ${err.message}`); });
+    const ctrl = new AbortController();
+    fetch(apiUrl('/api/playlists'), { signal: ctrl.signal }).then(r => r.json()).then(setPlaylists).catch((err) => {
+      if (err.name !== 'AbortError') setError(`加载歌单失败: ${err.message}`);
+    });
+    return () => ctrl.abort();
   }, []);
 
   const handleCreate = () => {
     if (!newName.trim()) return;
     const playlist: Playlist = {
       id: String(Date.now()),
-      name: newName,
-      description: newDesc,
+      name: newName.trim(),
+      description: newDesc.trim(),
       songCount: 0,
       isDefault: false,
       createdAt: new Date().toISOString(),
@@ -35,6 +39,10 @@ export default function PlaylistManager() {
     setNewName('');
     setNewDesc('');
     setShowCreate(false);
+  };
+
+  const handleDelete = (id: string) => {
+    setPlaylists(prev => prev.filter(p => p.id !== id));
   };
 
   return (
@@ -69,7 +77,8 @@ export default function PlaylistManager() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <input
               type="text" value={newName} onChange={e => setNewName(e.target.value)}
-              placeholder="歌单名称"
+              placeholder="歌单名称" maxLength={50}
+              onKeyDown={e => e.key === 'Enter' && handleCreate()}
               style={{
                 padding: '10px 14px', borderRadius: 8,
                 border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)',
@@ -79,7 +88,7 @@ export default function PlaylistManager() {
             <textarea
               value={newDesc} onChange={e => setNewDesc(e.target.value)}
               placeholder="歌单描述（可选）"
-              rows={3}
+              rows={3} maxLength={200}
               style={{
                 padding: '10px 14px', borderRadius: 8,
                 border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)',
@@ -92,7 +101,7 @@ export default function PlaylistManager() {
                 border: '1px solid rgba(51,255,102,0.2)', background: 'rgba(51,255,102,0.08)',
                 color: '#3f6', fontSize: 12, cursor: 'pointer',
               }}>创建</button>
-              <button onClick={() => setShowCreate(false)} style={{
+              <button onClick={() => { setShowCreate(false); setNewName(''); setNewDesc(''); }} style={{
                 padding: '8px 16px', borderRadius: 8,
                 border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)',
                 color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer',
@@ -104,6 +113,9 @@ export default function PlaylistManager() {
 
       {/* Playlist list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {playlists.length === 0 && (
+          <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, textAlign: 'center', padding: 40 }}>暂无歌单</div>
+        )}
         {playlists.map(playlist => (
           <div key={playlist.id} style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -125,8 +137,9 @@ export default function PlaylistManager() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: 12 }}>编辑</button>
-              <button style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: 12 }}>删除</button>
+              {!playlist.isDefault && (
+                <button onClick={() => handleDelete(playlist.id)} style={{ background: 'none', border: 'none', color: '#ff6666', cursor: 'pointer', fontSize: 12 }}>删除</button>
+              )}
             </div>
           </div>
         ))}

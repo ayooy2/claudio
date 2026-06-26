@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { apiUrl } from '../../lib/api.js';
 
 interface Song {
@@ -20,8 +20,9 @@ export default function MusicLibrary() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(apiUrl('/api/playlist')).then(r => r.json()).then(data => {
-      setSongs(data.songs?.map((s: any, i: number) => ({
+    const ctrl = new AbortController();
+    fetch(apiUrl('/api/playlist'), { signal: ctrl.signal }).then(r => r.json()).then(data => {
+      setSongs(data.songs?.map((s: { name: string; artist: string; album?: string; duration?: number }, i: number) => ({
         id: String(i),
         name: s.name,
         artist: s.artist,
@@ -31,16 +32,19 @@ export default function MusicLibrary() {
         enabled: true,
         isFavorite: false,
       })) || []);
-    }).catch((err) => { setError(`加载音乐库失败: ${err.message}`); });
+    }).catch((err) => {
+      if (err.name !== 'AbortError') setError(`加载音乐库失败: ${err.message}`);
+    });
+    return () => ctrl.abort();
   }, []);
 
-  const filtered = songs.filter(s => {
+  const filtered = useMemo(() => songs.filter(s => {
     const matchSearch = s.name.toLowerCase().includes(search.toLowerCase()) ||
                        s.artist.toLowerCase().includes(search.toLowerCase());
     if (filter === 'favorites') return matchSearch && s.isFavorite;
     if (filter === 'enabled') return matchSearch && s.enabled;
     return matchSearch;
-  });
+  }), [songs, search, filter]);
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
@@ -63,6 +67,12 @@ export default function MusicLibrary() {
     setSongs(prev => prev.map(s => s.id === id ? { ...s, enabled: !s.enabled } : s));
   };
 
+  const batchSetEnabled = (enabled: boolean) => {
+    if (selected.size === 0) return;
+    setSongs(prev => prev.map(s => selected.has(s.id) ? { ...s, enabled } : s));
+    setSelected(new Set());
+  };
+
   return (
     <div>
       {error && (
@@ -78,12 +88,13 @@ export default function MusicLibrary() {
       {/* Toolbar */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        marginBottom: 16, gap: 12,
+        marginBottom: 16, gap: 12, flexWrap: 'wrap',
       }}>
-        <div style={{ display: 'flex', gap: 8, flex: 1 }}>
+        <div style={{ display: 'flex', gap: 8, flex: 1, minWidth: 200 }}>
           <input
             type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder="搜索歌名、歌手..."
+            maxLength={100}
             style={{
               flex: 1, padding: '10px 14px', borderRadius: 8,
               border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)',
@@ -91,7 +102,7 @@ export default function MusicLibrary() {
             }}
           />
           <select
-            value={filter} onChange={e => setFilter(e.target.value as any)}
+            value={filter} onChange={e => setFilter(e.target.value as 'all' | 'favorites' | 'enabled')}
             style={{
               padding: '10px 14px', borderRadius: 8,
               border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)',
@@ -104,29 +115,32 @@ export default function MusicLibrary() {
           </select>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button style={{
+          <button onClick={() => batchSetEnabled(true)} style={{
             padding: '10px 16px', borderRadius: 8,
-            border: '1px solid rgba(51,255,102,0.2)', background: 'rgba(51,255,102,0.08)',
-            color: '#3f6', fontSize: 12, cursor: 'pointer',
-          }}>批量启用</button>
-          <button style={{
+            border: '1px solid rgba(51,255,102,0.2)', background: selected.size > 0 ? 'rgba(51,255,102,0.15)' : 'rgba(51,255,102,0.05)',
+            color: '#3f6', fontSize: 12, cursor: selected.size > 0 ? 'pointer' : 'default',
+            opacity: selected.size > 0 ? 1 : 0.5,
+          }}>批量启用{selected.size > 0 ? ` (${selected.size})` : ''}</button>
+          <button onClick={() => batchSetEnabled(false)} style={{
             padding: '10px 16px', borderRadius: 8,
-            border: '1px solid rgba(255,102,102,0.2)', background: 'rgba(255,102,102,0.08)',
-            color: '#ff6666', fontSize: 12, cursor: 'pointer',
-          }}>批量禁用</button>
+            border: '1px solid rgba(255,102,102,0.2)', background: selected.size > 0 ? 'rgba(255,102,102,0.15)' : 'rgba(255,102,102,0.05)',
+            color: '#ff6666', fontSize: 12, cursor: selected.size > 0 ? 'pointer' : 'default',
+            opacity: selected.size > 0 ? 1 : 0.5,
+          }}>批量禁用{selected.size > 0 ? ` (${selected.size})` : ''}</button>
         </div>
       </div>
 
       {/* Table */}
       <div style={{
         background: 'rgba(0,0,0,0.3)', borderRadius: 12,
-        border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden',
+        border: '1px solid rgba(255,255,255,0.06)', overflow: 'auto',
       }}>
         {/* Header */}
         <div style={{
           display: 'grid', gridTemplateColumns: '40px 1fr 1fr 80px 80px 80px',
           padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)',
           fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: 600,
+          minWidth: 500,
         }}>
           <div><input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={selectAll} /></div>
           <div>歌名</div>
@@ -143,6 +157,7 @@ export default function MusicLibrary() {
             padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.03)',
             alignItems: 'center',
             background: selected.has(song.id) ? 'rgba(51,255,102,0.05)' : 'transparent',
+            minWidth: 500,
           }}>
             <div><input type="checkbox" checked={selected.has(song.id)} onChange={() => toggleSelect(song.id)} /></div>
             <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.name}</div>
