@@ -338,6 +338,8 @@ export default function App() {
   const [comment, setComment] = useState<{ content: string; nickname: string; likedCount: number } | null>(null);
   const [playMode, setPlayMode] = useState<'sequence' | 'loop' | 'shuffle'>(() => loadState('claudio_play_mode', 'sequence'));
   const [playedIndices, setPlayedIndices] = useState<Set<number>>(new Set());
+  const playedIndicesRef = useRef(playedIndices);
+  useEffect(() => { playedIndicesRef.current = playedIndices; }, [playedIndices]);
   const [bgLoaded, setBgLoaded] = useState(false);
   const [coverMode, setCoverMode] = useState<'vinyl' | 'fullcover'>(() => loadState('claudio_cover_mode', 'vinyl'));
   const [showSettings, setShowSettings] = useState(false);
@@ -569,9 +571,10 @@ export default function App() {
       }
       return;
     } else if (playMode === 'shuffle') {
-      // Fix: use functional update to avoid stale playedIndices
-      const resetNeeded = playedIndices.size >= queue.length;
-      const effectivePlayed = resetNeeded ? new Set<number>() : playedIndices;
+      // Use ref to avoid stale closure on rapid calls
+      const currentPlayed = playedIndicesRef.current;
+      const resetNeeded = currentPlayed.size >= queue.length;
+      const effectivePlayed = resetNeeded ? new Set<number>() : currentPlayed;
       if (resetNeeded) setPlayedIndices(new Set());
       const available = queue.map((_, i) => i).filter(i => !effectivePlayed.has(i) && i !== queueIdx);
       if (available.length === 0) {
@@ -584,13 +587,13 @@ export default function App() {
       n = (queueIdx + 1) % queue.length;
     }
     setQueueIdx(n); setCurrentTime(0); play(queue[n]);
-  }, [queue, queueIdx, play, setCurrentTime, playMode, playedIndices]);
+  }, [queue, queueIdx, play, setCurrentTime, playMode]);
 
   const handlePrev = useCallback(() => {
     if (queue.length <= 1) return;
     const p = queueIdx <= 0 ? queue.length - 1 : queueIdx - 1;
     setQueueIdx(p); setCurrentTime(0); play(queue[p]);
-  }, [queue, queueIdx, play, setCurrentTime]);
+  }, [queue, queueIdx, play, setCurrentTime, playMode]);
 
   const handleSeek = useCallback((pct: number) => {
     if (audioRef.current) audioRef.current.currentTime = (audioRef.current.duration || 0) * pct;
