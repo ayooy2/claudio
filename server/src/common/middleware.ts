@@ -17,10 +17,10 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
 
   logger.error('Unhandled error', { message: err.message, stack: err.stack });
   res.status(500).json({
-    error: { code: 'INTERNAL_ERROR', message: 'Internal server error' },
+    error: { code: 'INTERNAL_ERROR', message: '服务器内部错误' },
   });
 }
 
 export function notFound(_req: Request, res: Response) {
-  res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Route not found' } });
+  res.status(404).json({ error: { code: 'NOT_FOUND', message: '路由未找到' } });
 }

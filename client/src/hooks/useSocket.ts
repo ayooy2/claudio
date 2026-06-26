@@ -13,6 +13,9 @@ export function useSocket() {
     const s = io(WS_URL, {
       path: '/ws',
       transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 3000,
     });
 
     s.on('connect', () => setConnected(true));

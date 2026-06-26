@@ -147,7 +147,7 @@ export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
-        <span style={{ fontSize: 16, fontWeight: 600, color: text, letterSpacing: 2 }}>SEARCH</span>
+        <span style={{ fontSize: 16, fontWeight: 600, color: text, letterSpacing: 2 }}>搜索</span>
         <button onClick={onClose} style={{ background: 'none', border: 'none', color: textDim, fontSize: 18, cursor: 'pointer' }}>✕</button>
       </div>
 
@@ -157,6 +157,7 @@ export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent
           <input
             ref={inputRef}
             type="text" value={query} onChange={e => setQuery(e.target.value)}
+            maxLength={100}
             placeholder="搜索歌曲、歌手..."
             style={{
               width: '100%', padding: '12px 16px', borderRadius: 12,

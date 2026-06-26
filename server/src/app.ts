@@ -24,9 +24,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export function createApp() {
   const app = express();
   const server = http.createServer(app);
-  const io = new SocketIOServer(server, { cors: { origin: '*' }, path: '/ws' });
+  const allowedOrigins = (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+  const io = new SocketIOServer(server, { cors: { origin: allowedOrigins }, path: '/ws' });
 
-  app.use(cors());
+  app.use(cors({ origin: allowedOrigins }));
   app.use(express.json());
   app.use(requestLogger);
 
@@ -93,7 +94,7 @@ export function createApp() {
   // Search songs from Netease API
   app.post('/api/search', async (req, res) => {
     const { keyword, limit = 20 } = req.body;
-    if (!keyword) return res.status(400).json({ error: 'Missing keyword' });
+    if (!keyword) return res.status(400).json({ error: '缺少搜索关键词' });
     try {
       const result = await musicService.search(keyword, limit);
       res.json(result);
@@ -105,7 +106,7 @@ export function createApp() {
   // Search for a song and get its URL
   app.post('/api/resolve-song', async (req, res) => {
     const { name, artist } = req.body;
-    if (!name) return res.status(400).json({ error: 'Missing name' });
+    if (!name) return res.status(400).json({ error: '缺少歌曲名称' });
     try {
       const searchRes = await musicService.search(`${name} ${artist || ''}`.trim(), 3);
       if (searchRes.songs.length > 0) {
@@ -136,7 +137,7 @@ export function createApp() {
           cover = searchRes.songs[0].cover ?? null;
         }
       }
-      if (!songId) return res.json({ url: null, error: 'No song found' });
+      if (!songId) return res.json({ url: null, error: '未找到歌曲' });
 
       const { url, isTrial } = await musicService.getSongUrl(songId, force === 'true');
       const proxyUrl = url ? `/api/audio-proxy?url=${encodeURIComponent(url)}` : null;
@@ -164,7 +165,7 @@ export function createApp() {
   // Get top comment for a song
   app.get('/api/comment', async (req, res) => {
     const { id } = req.query;
-    if (!id) return res.status(400).json({ error: 'Missing id' });
+    if (!id) return res.status(400).json({ error: '缺少歌曲ID' });
     try {
       const comment = await musicService.getTopComment(String(id));
       res.json({ comment });
@@ -214,7 +215,7 @@ export function createApp() {
   // Audio proxy (with SSRF protection + Range support)
   app.get('/api/audio-proxy', async (req, res) => {
     const audioUrl = req.query.url as string;
-    if (!audioUrl) return res.status(400).json({ error: 'Missing url param' });
+    if (!audioUrl) return res.status(400).json({ error: '缺少URL参数' });
     // SSRF protection: only allow specific domains
     try {
       const parsed = new URL(audioUrl);
@@ -228,10 +229,10 @@ export function createApp() {
         );
       };
       if (!isAllowedHost(parsed.hostname)) {
-        return res.status(403).json({ error: 'Domain not allowed' });
+        return res.status(403).json({ error: '域名不在白名单' });
       }
     } catch {
-      return res.status(400).json({ error: 'Invalid URL' });
+      return res.status(400).json({ error: '无效的URL' });
     }
     try {
       // 构建上游请求头，透传 Range
@@ -248,7 +249,7 @@ export function createApp() {
       });
       // 上游可能返回 206 或 200
       if (!audioRes.ok && audioRes.status !== 206) {
-        return res.status(audioRes.status).json({ error: `Upstream: ${audioRes.status}` });
+        return res.status(audioRes.status).json({ error: `上游返回: ${audioRes.status}` });
       }
 
       // 修正 Content-Type：音频文件不应带 charset，且确保是浏览器支持的格式
@@ -269,11 +270,11 @@ export function createApp() {
 
       // 缓冲第一个 chunk 做 magic byte 验证，通过后再写响应头
       const reader = audioRes.body?.getReader();
-      if (!reader) return res.status(502).json({ error: 'No response body' });
+      if (!reader) return res.status(502).json({ error: '上游无响应体' });
 
       const firstChunk = await reader.read();
       if (firstChunk.done || !firstChunk.value || firstChunk.value.length < 12) {
-        return res.status(502).json({ error: 'Empty or too small response from upstream' });
+        return res.status(502).json({ error: '上游响应过小或为空' });
       }
 
       const magic = Buffer.from(firstChunk.value.slice(0, 12));
@@ -286,7 +287,7 @@ export function createApp() {
         magic.toString('ascii', 0, 4) === 'RIFF';             // WAV
       if (!isAudio) {
         logger.warn('音频代理：上游返回非音频数据，前12字节:', magic.toString('hex'));
-        return res.status(502).json({ error: 'Upstream returned non-audio data' });
+        return res.status(502).json({ error: '上游返回非音频数据' });
       }
 
       // 验证通过，设置响应头
@@ -317,7 +318,7 @@ export function createApp() {
       res.end();
     } catch (err) {
       if (!res.headersSent) {
-        res.status(502).json({ error: 'Audio proxy error' });
+        res.status(502).json({ error: '音频代理错误' });
       } else {
         // 响应头已发送，只能结束响应
         logger.error('音频代理：流式传输中断', err);

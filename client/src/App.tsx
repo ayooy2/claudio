@@ -343,18 +343,30 @@ export default function App() {
   useEffect(() => { queueRef.current = queue; }, [queue]);
   useEffect(() => { queueIdxRef.current = queueIdx; }, [queueIdx]);
 
-  // Save state to localStorage
+  // Save display settings to localStorage
   useEffect(() => {
     try {
       localStorage.setItem('claudio_scene', JSON.stringify(scene));
       localStorage.setItem('claudio_cover_mode', JSON.stringify(coverMode));
       localStorage.setItem('claudio_show_cover', JSON.stringify(showCover));
       localStorage.setItem('claudio_show_time', JSON.stringify(showTime));
+    } catch {}
+  }, [scene, coverMode, showCover, showTime]);
+
+  // Save queue to localStorage
+  useEffect(() => {
+    try {
       localStorage.setItem('claudio_queue', JSON.stringify(queue));
       localStorage.setItem('claudio_queue_idx', JSON.stringify(queueIdx));
+    } catch {}
+  }, [queue, queueIdx]);
+
+  // Save favorites to localStorage
+  useEffect(() => {
+    try {
       localStorage.setItem('claudio_favorites', JSON.stringify(likedSongs));
     } catch {}
-  }, [scene, queue, queueIdx, likedSongs, coverMode, showCover, showTime]);
+  }, [likedSongs]);
 
   // Preload background image when scene changes
   useEffect(() => {
