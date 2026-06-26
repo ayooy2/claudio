@@ -344,6 +344,7 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [showCover, setShowCover] = useState(() => loadState('claudio_show_cover', true, isBoolean));
   const [showTime, setShowTime] = useState(() => loadState('claudio_show_time', true, isBoolean));
+  const [showParticles, setShowParticles] = useState(() => loadState('claudio_show_particles', true, isBoolean));
   const [quality, setQuality] = useState(() => loadState('claudio_quality', 0, isNumber));
   const qualityRef = useRef(quality);
 
@@ -386,8 +387,9 @@ export default function App() {
       localStorage.setItem('claudio_show_cover', JSON.stringify(showCover));
       localStorage.setItem('claudio_quality', JSON.stringify(quality));
       localStorage.setItem('claudio_show_time', JSON.stringify(showTime));
+      localStorage.setItem('claudio_show_particles', JSON.stringify(showParticles));
     } catch {}
-  }, [scene, coverMode, showCover, showTime, quality]);
+  }, [scene, coverMode, showCover, showTime, quality, showParticles]);
 
   // Save queue to localStorage
   useEffect(() => {
@@ -771,7 +773,7 @@ export default function App() {
         transition: 'background 0.8s ease',
       }} />
 
-      <Particles scene={scene} />
+      {showParticles && <Particles scene={scene} />}
 
       {/* Header */}
       <div style={{
@@ -847,7 +849,7 @@ export default function App() {
           `}</style>
           {coverMode === 'vinyl' ? (
             /* ===== 黑胶唱片 ===== */
-            <div className={`cover-vinyl${isPlaying ? ' playing' : ''}`} style={{ marginTop: 20, position: 'relative' }}>
+            <div className={`cover-vinyl${isPlaying ? ' playing' : ''}`} style={{ marginTop: 20, position: 'relative', background: 'transparent' }}>
               {/* 整个唱片（旋转） */}
               <div style={{
                 width: '100%', height: '100%', borderRadius: '50%',
@@ -1369,6 +1371,20 @@ export default function App() {
                     }} />
                   </button>
                 </label>
+                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '6px 0' }}>
+                  <span style={{ fontSize: 12, color: sc.textDim }}>粒子特效</span>
+                  <button onClick={() => setShowParticles(v => !v)} style={{
+                    width: 36, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer', position: 'relative',
+                    background: showParticles ? sc.accent : 'rgba(255,255,255,0.15)',
+                    transition: 'background 0.3s ease',
+                  }}>
+                    <div style={{
+                      width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                      position: 'absolute', top: 2, left: showParticles ? 18 : 2,
+                      transition: 'left 0.3s ease', boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                    }} />
+                  </button>
+                </label>
               </div>
             </div>
             <div style={{ marginBottom: 20 }}>
@@ -1503,6 +1519,58 @@ export default function App() {
         .queue-drawer::-webkit-scrollbar-track { background: transparent; }
         .queue-drawer::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
         .queue-drawer::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+        /* Particle animations */
+        @keyframes twinkle {
+          0%, 100% { opacity: 0.2; transform: scale(0.8); }
+          50% { opacity: 1; transform: scale(1.2); }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0); opacity: 0.3; }
+          50% { transform: translateY(-15px); opacity: 0.8; }
+        }
+        @keyframes rain {
+          0% { transform: translateY(-10px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateY(100vh); opacity: 0; }
+        }
+        @keyframes fall {
+          0% { transform: translateY(-10px) rotate(0deg); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 0.8; }
+          100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+        }
+        @keyframes drift {
+          0%, 100% { transform: translate(0, 0); opacity: 0.3; }
+          25% { transform: translate(10px, -8px); opacity: 0.7; }
+          50% { transform: translate(-5px, -15px); opacity: 0.5; }
+          75% { transform: translate(8px, -5px); opacity: 0.6; }
+        }
+
+        /* Vinyl spin */
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+
+        /* Equalizer bars */
+        @keyframes equalizer {
+          from { height: 4px; }
+          to { height: 14px; }
+        }
+
+        /* Audio visualizer bars */
+        @keyframes viz-bar {
+          from { height: 4px; }
+          to { height: 20px; }
+        }
+
+        /* Fade in */
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
       `}</style>
     </div>
   );
