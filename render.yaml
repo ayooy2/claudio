@@ -18,7 +18,7 @@ services:
       - key: NETEASE_COOKIE
         sync: false
       - key: BRAIN_API_URL
-        value: https://api.deepseek.com/anthropic
+        value: https://api.deepseek.com
       - key: BRAIN_API_KEY
         sync: false
       - key: BRAIN_MODEL
