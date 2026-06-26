@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { IStore, Message, Play, PlanEntry } from './store.interface.js';
+import type { IStore, Message, Play, PlanEntry, Playlist } from './store.interface.js';
 import { logger } from '../common/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -14,6 +14,7 @@ interface StoreData {
   messages: Message[];
   plays: Play[];
   plan: PlanEntry[];
+  playlists: Playlist[];
   prefs: Record<string, string>;
 }
 
@@ -36,7 +37,7 @@ export class JsonStore implements IStore {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
 
-    this.data = { messages: [], plays: [], plan: [], prefs: { ...DEFAULT_PREFS } };
+    this.data = { messages: [], plays: [], plan: [], playlists: [], prefs: { ...DEFAULT_PREFS } };
 
     if (fs.existsSync(DB_FILE)) {
       try {
@@ -45,6 +46,7 @@ export class JsonStore implements IStore {
           messages: loaded.messages ?? [],
           plays: loaded.plays ?? [],
           plan: loaded.plan ?? [],
+          playlists: loaded.playlists ?? [],
           prefs: { ...DEFAULT_PREFS, ...loaded.prefs },
         };
       } catch {
@@ -118,6 +120,32 @@ export class JsonStore implements IStore {
     return this.data.plan
       .filter(p => p.date === today)
       .sort((a, b) => a.time_slot.localeCompare(b.time_slot));
+  }
+
+  getPlaylists(): Playlist[] {
+    return [...this.data.playlists];
+  }
+
+  addPlaylist(name: string, description = ''): Playlist {
+    const playlist: Playlist = {
+      id: String(Date.now()),
+      name,
+      description,
+      songCount: 0,
+      isDefault: false,
+      createdAt: new Date().toISOString(),
+    };
+    this.data.playlists.push(playlist);
+    this.save();
+    return playlist;
+  }
+
+  deletePlaylist(id: string): boolean {
+    const idx = this.data.playlists.findIndex(p => p.id === id);
+    if (idx < 0) return false;
+    this.data.playlists.splice(idx, 1);
+    this.save();
+    return true;
   }
 
   getPref(key: string): string | null {

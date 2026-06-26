@@ -21,6 +21,15 @@ export interface PlanEntry {
   notes: string | null;
 }
 
+export interface Playlist {
+  id: string;
+  name: string;
+  description: string;
+  songCount: number;
+  isDefault: boolean;
+  createdAt: string;
+}
+
 export interface IStore {
   // Messages
   addMessage(role: Message['role'], content: string, metadata?: Record<string, unknown>): Message;
@@ -34,6 +43,11 @@ export interface IStore {
   // Plan
   setPlan(date: string, timeSlot: string, mood?: string | null, playlist?: string[] | null, notes?: string | null): PlanEntry;
   getTodayPlan(): PlanEntry[];
+
+  // Playlists
+  getPlaylists(): Playlist[];
+  addPlaylist(name: string, description?: string): Playlist;
+  deletePlaylist(id: string): boolean;
 
   // Preferences
   getPref(key: string): string | null;

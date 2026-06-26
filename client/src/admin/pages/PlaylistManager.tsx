@@ -25,24 +25,33 @@ export default function PlaylistManager() {
     return () => ctrl.abort();
   }, []);
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!newName.trim()) return;
-    const playlist: Playlist = {
-      id: String(Date.now()),
-      name: newName.trim(),
-      description: newDesc.trim(),
-      songCount: 0,
-      isDefault: false,
-      createdAt: new Date().toISOString(),
-    };
-    setPlaylists(prev => [...prev, playlist]);
-    setNewName('');
-    setNewDesc('');
-    setShowCreate(false);
+    try {
+      const res = await fetch(apiUrl('/api/playlists'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName.trim(), description: newDesc.trim() }),
+      });
+      const playlist = await res.json();
+      if (playlist.id) {
+        setPlaylists(prev => [...prev, playlist]);
+        setNewName('');
+        setNewDesc('');
+        setShowCreate(false);
+      }
+    } catch (err) {
+      setError(`创建歌单失败: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setPlaylists(prev => prev.filter(p => p.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      await fetch(apiUrl(`/api/playlists/${id}`), { method: 'DELETE' });
+      setPlaylists(prev => prev.filter(p => p.id !== id));
+    } catch (err) {
+      setError(`删除歌单失败: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
 
   return (

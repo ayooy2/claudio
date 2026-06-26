@@ -349,6 +349,32 @@ export function createApp() {
   app.use('/api', tasteRouter);
   app.use('/api', planRouter);
 
+  // ===== Admin API =====
+  const store = getStore();
+
+  // Recent plays
+  app.get('/api/plays/recent', (_req, res) => {
+    const limit = Number(_req.query.limit) || 20;
+    res.json(store.getRecentPlays(limit));
+  });
+
+  // Playlists CRUD
+  app.get('/api/playlists', (_req, res) => {
+    res.json(store.getPlaylists());
+  });
+
+  app.post('/api/playlists', (req, res) => {
+    const { name, description } = req.body as { name?: string; description?: string };
+    if (!name?.trim()) return res.status(400).json({ error: '歌单名称不能为空' });
+    const playlist = store.addPlaylist(name.trim(), description?.trim());
+    res.json(playlist);
+  });
+
+  app.delete('/api/playlists/:id', (req, res) => {
+    const ok = store.deletePlaylist(req.params.id);
+    res.json({ ok });
+  });
+
   // ===== SPA fallback =====
   app.get('*', (_req, res, next) => {
     if (_req.path.startsWith('/api')) return next();
