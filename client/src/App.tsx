@@ -3,7 +3,7 @@ import { usePlayer, type SongInfo } from './hooks/usePlayer.js';
 import { useSocket } from './hooks/useSocket.js';
 import SearchPanel from './components/SearchPanel.js';
 import { IconQueue, IconPrev, IconNext, IconPlay, IconPause, IconLoading, IconHeart, IconLyrics, IconVolume, IconSequence, IconShuffle, IconLoop } from './components/Icons.js';
-import { apiUrl } from './lib/api.js';
+import { apiUrl, toAbsoluteUrl } from './lib/api.js';
 
 // ===== LocalStorage helpers =====
 function loadState<T>(key: string, fallback: T, validate?: (v: unknown) => v is T): T {
@@ -562,7 +562,7 @@ export default function App() {
         .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
         .then(data => {
           if (!cancelled && data.url) {
-            setQueue(prev => prev.map((s, i) => i === nextIdx ? { ...s, url: data.url, id: data.id || s.id, cover: data.cover || s.cover } : s));
+            setQueue(prev => prev.map((s, i) => i === nextIdx ? { ...s, url: toAbsoluteUrl(data.url), id: data.id || s.id, cover: data.cover || s.cover } : s));
           }
         })
         .catch(() => {});

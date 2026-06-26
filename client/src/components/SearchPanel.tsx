@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { SongInfo } from '../hooks/usePlayer.js';
-import { apiUrl } from '../lib/api.js';
+import { apiUrl, toAbsoluteUrl } from '../lib/api.js';
 
 interface Props {
   onSelect: (song: SongInfo) => void;
@@ -102,7 +102,7 @@ export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (data.url) {
-        onSelect({ ...song, url: data.url, isTrial: data.isTrial });
+        onSelect({ ...song, url: toAbsoluteUrl(data.url)!, isTrial: data.isTrial });
         onClose();
       } else {
         showTempError('该歌曲暂无可用播放链接');
@@ -122,7 +122,7 @@ export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (data.url) {
-        onSelect({ id: data.id || entry.id || '', name: entry.name, artist: entry.artist, album: entry.album, duration: 0, fee: 0, url: data.url, isTrial: data.isTrial });
+        onSelect({ id: data.id || entry.id || '', name: entry.name, artist: entry.artist, album: entry.album, duration: 0, fee: 0, url: toAbsoluteUrl(data.url)!, isTrial: data.isTrial });
         onClose();
       } else {
         showTempError('该歌曲暂无可用播放链接');

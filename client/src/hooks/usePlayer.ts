@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback } from 'react';
-import { apiUrl } from '../lib/api.js';
+import { apiUrl, toAbsoluteUrl } from '../lib/api.js';
 
 // iOS Safari autoplay unlock — lazy AudioContext that resumes on first play()
 let _audioCtx: AudioContext | null = null;
@@ -76,7 +76,7 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
           );
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const data = await res.json();
-          url = data.url;
+          url = toAbsoluteUrl(data.url);
           if (url) {
             setCurrent(prev => prev ? { ...prev, url, id: data.id || prev.id, cover: data.cover || prev.cover } : prev);
           }
@@ -163,13 +163,14 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
           const brParam = qualityRef?.current ? `&br=${qualityRef.current}` : '';
           const res = await fetch(apiUrl(`/api/song-url?id=${song.id}&force=true${brParam}`));
           const data = await res.json();
-          if (data.url) {
+          const retriedUrl = toAbsoluteUrl(data.url);
+          if (retriedUrl) {
             // Check if a newer play() has started during fetch
             if (playSeqRef.current !== seq) return;
             // 更新 song 的 url 和 queue 中的引用
-            song.url = data.url;
+            song.url = retriedUrl;
             const a = audioRef.current!;
-            a.src = data.url;
+            a.src = retriedUrl;
             a.volume = volumeRef.current;
             await new Promise<void>((resolve, reject) => {
               const onOk = () => { a.removeEventListener('error', onErr2); resolve(); };
