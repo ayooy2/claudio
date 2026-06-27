@@ -61,6 +61,15 @@ export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent
     return () => clearTimeout(timer);
   }, [show]);
 
+  // Reset search state when panel closes
+  useEffect(() => {
+    if (!show) {
+      setQuery('');
+      setResult({ songs: [], loading: false });
+      setSelectError(null);
+    }
+  }, [show]);
+
   // Search with debounce + AbortController for race condition
   useEffect(() => {
     if (!query.trim()) {
