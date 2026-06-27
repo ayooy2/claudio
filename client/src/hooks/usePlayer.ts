@@ -59,47 +59,59 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
     setDuration(song.duration || 0);
     setPlayError(null);
 
-    // Abort any in-flight fetch
-    const abortCtrl = new AbortController();
-    const timeoutId = setTimeout(() => abortCtrl.abort(), 15000);
-
     let url = song.url;
-    if (!url) {
-      setIsLoading(true);
-      const maxAttempts = 2;
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        try {
-          const brParam = qualityRef?.current ? `&br=${qualityRef.current}` : '';
-          const res = await fetch(
-            apiUrl(`/api/song-url?name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(song.artist)}${brParam}`),
-            { signal: abortCtrl.signal }
-          );
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = await res.json();
-          url = toAbsoluteUrl(data.url);
-          if (url) {
-            setCurrent(prev => prev ? { ...prev, url, id: data.id || prev.id, cover: data.cover || prev.cover } : prev);
-          }
-          break;
-        } catch (e: unknown) {
-          if (e instanceof Error && e.name === 'AbortError') break;
-          console.warn(`获取URL失败 (attempt ${attempt + 1}):`, e);
-          if (attempt < maxAttempts - 1) {
-            await new Promise(r => setTimeout(r, 1000));
-          }
-        }
-      }
+    let timedOut = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    // 如果歌曲已有URL，无需加载，清除可能残留的 loading 状态
+    if (url) {
       setIsLoading(false);
     }
 
-    clearTimeout(timeoutId);
+    if (!url) {
+      setIsLoading(true);
+      try {
+        const abortCtrl = new AbortController();
+        // Render 免费版冷启动约需 30-60 秒，超时设为 45 秒
+        timeoutId = setTimeout(() => abortCtrl.abort(), 45000);
+        const maxAttempts = 2;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          try {
+            const brParam = qualityRef?.current ? `&br=${qualityRef.current}` : '';
+            const res = await fetch(
+              apiUrl(`/api/song-url?name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(song.artist)}${brParam}`),
+              { signal: abortCtrl.signal }
+            );
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            url = toAbsoluteUrl(data.url);
+            if (url) {
+              setCurrent(prev => prev ? { ...prev, url, id: data.id || prev.id, cover: data.cover || prev.cover } : prev);
+            }
+            break;
+          } catch (e: unknown) {
+            if (e instanceof Error && e.name === 'AbortError') { timedOut = true; break; }
+            console.warn(`获取URL失败 (attempt ${attempt + 1}):`, e);
+            if (attempt < maxAttempts - 1) {
+              await new Promise(r => setTimeout(r, 1000));
+            }
+          }
+        }
+      } finally {
+        // 仅当没有更新的 play() 调用时才清除 loading，避免竞态条件
+        if (playSeqRef.current === seq) {
+          setIsLoading(false);
+        }
+        if (timeoutId) clearTimeout(timeoutId);
+      }
+    }
 
     // If a newer play() has been called, abort this one
     if (playSeqRef.current !== seq) return;
 
     if (!url) {
       setIsPlaying(false);
-      setPlayError('获取歌曲链接失败');
+      setPlayError(timedOut ? '连接超时，服务器可能正在启动中（约需30-60秒），请稍后重试' : '获取歌曲链接失败');
       return;
     }
 
@@ -141,7 +153,7 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
           cleanup(); resolve(); return;
         }
         // 超时
-        const timer = setTimeout(() => { cleanup(); reject(new Error('加载超时（10s）')); }, 10000);
+        const timer = setTimeout(() => { cleanup(); reject(new Error('音频加载超时（30s）')); }, 30000);
       });
 
       // Check again after await — a newer play() may have started
@@ -161,7 +173,7 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
         console.warn('媒体错误 code=4，尝试重新获取 URL...');
         try {
           const brParam = qualityRef?.current ? `&br=${qualityRef.current}` : '';
-          const res = await fetch(apiUrl(`/api/song-url?id=${song.id}&force=true${brParam}`));
+          const res = await fetch(apiUrl(`/api/song-url?id=${song.id}&force=true${brParam}`), { signal: AbortSignal.timeout(20000) });
           const data = await res.json();
           const retriedUrl = toAbsoluteUrl(data.url);
           if (retriedUrl) {
@@ -177,7 +189,7 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
               const onErr2 = () => { a.removeEventListener('canplay', onOk); reject(new Error('重试仍失败')); };
               a.addEventListener('canplay', onOk, { once: true });
               a.addEventListener('error', onErr2, { once: true });
-              setTimeout(() => { a.removeEventListener('canplay', onOk); a.removeEventListener('error', onErr2); reject(new Error('重试超时')); }, 10000);
+              setTimeout(() => { a.removeEventListener('canplay', onOk); a.removeEventListener('error', onErr2); reject(new Error('重试超时')); }, 30000);
             });
             // Check again after await
             if (playSeqRef.current !== seq) return;
