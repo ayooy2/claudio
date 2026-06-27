@@ -70,7 +70,7 @@ const SCENE_CONFIG: Record<Scene, SceneConfig> = {
     accent: '#4ade80', text: 'rgba(200,255,230,0.95)', textDim: 'rgba(200,255,230,0.45)', name: '极光', emoji: '🌌',
     category: 'dynamic',
     bgImage: 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=1920&h=1080&fit=crop',
-    particles: { count: 0, css: '', style: 'dots' },
+    particles: { count: 25, css: 'auroraFloat 6s ease-in-out infinite', style: 'dots' },
   },
   ocean: {
     bg: '#030d1a',
@@ -835,6 +835,7 @@ export default function App() {
         <div style={{
           maxHeight: showCover ? 500 : 0, opacity: showCover ? 1 : 0,
           overflow: 'hidden', transition: 'max-height 0.6s cubic-bezier(0.4,0,0.2,1), opacity 0.4s ease',
+          background: 'transparent',
         }}>
           <style>{`
             .cover-vinyl { width: min(42vw, 35vh, 220px); aspect-ratio: 1; flex-shrink: 0; transition: all 0.4s ease; }
@@ -905,7 +906,7 @@ export default function App() {
             </div>
           ) : (
             /* ===== 全屏封面 ===== */
-            <div className={`cover-full${isPlaying ? ' playing' : ''}`} style={{ marginTop: 20, position: 'relative' }}>
+            <div className={`cover-full${isPlaying ? ' playing' : ''}`} style={{ marginTop: 20, position: 'relative', background: 'transparent' }}>
               <div style={{
                 width: '100%', height: '100%', borderRadius: 20, overflow: 'hidden', position: 'relative',
                 boxShadow: isPlaying
@@ -1546,6 +1547,13 @@ export default function App() {
           25% { transform: translate(10px, -8px); opacity: 0.7; }
           50% { transform: translate(-5px, -15px); opacity: 0.5; }
           75% { transform: translate(8px, -5px); opacity: 0.6; }
+        }
+        @keyframes auroraFloat {
+          0%, 100% { transform: translateY(0) scale(0.8); opacity: 0.1; }
+          20% { transform: translateY(-18px) scale(1.4); opacity: 0.7; }
+          40% { transform: translateY(-8px) scale(1); opacity: 0.25; }
+          60% { transform: translateY(-28px) scale(1.5); opacity: 0.65; }
+          80% { transform: translateY(-12px) scale(1.1); opacity: 0.35; }
         }
 
         /* Vinyl spin */
