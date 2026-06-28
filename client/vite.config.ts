@@ -17,6 +17,22 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: false
-  }
+    sourcemap: false,
+    // 代码分割策略
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-socket': ['socket.io-client'],
+        },
+      },
+    },
+    // 压缩选项
+    target: 'es2020',
+    minify: 'esbuild',
+    // 资源内联阈值（4KB 以下的资源内联为 base64）
+    assetsInlineLimit: 4096,
+    // CSS 代码分割
+    cssCodeSplit: true,
+  },
 });
