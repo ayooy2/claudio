@@ -6,7 +6,8 @@ const log = logger.child('scheduler');
 type BroadcastFn = (data: Record<string, unknown>) => void;
 
 export class SchedulerService {
-  private jobs: cron.ScheduledTask[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private jobs: any[] = [];
   private broadcast: BroadcastFn | null = null;
 
   start(broadcast: BroadcastFn) {
