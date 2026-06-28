@@ -150,21 +150,26 @@ export class MusicService {
       if (config.netease.cookie) url.searchParams.set('cookie', config.netease.cookie);
 
       const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10_000) });
-      const data = await res.json() as any;
-      const allSongs = (data.result?.songs ?? [])
-        .map((s: any) => ({
-          id: String(s.id),
-          name: s.name,
-          artist: s.artists?.map((a: any) => a.name).join('/') ?? s.ar?.map((a: any) => a.name).join('/') ?? '',
-          album: s.album?.name ?? s.al?.name ?? '',
-          duration: Math.floor((s.duration ?? s.dt ?? 0) / 1000),
-          fee: s.fee ?? 1,
-          pop: s.pop ?? 0,
-          cover: s.al?.picUrl ?? s.album?.picUrl ?? null,
-        }));
+      const data = await res.json() as { result?: { songs?: unknown[] } };
+      const allSongs: SongInfo[] = ((data.result?.songs ?? []) as unknown[])
+        .map((s: unknown) => {
+          const song = s as Record<string, unknown>;
+          const artists = (song.artists ?? song.ar) as { name: string }[] | undefined;
+          const album = (song.album ?? song.al) as { name?: string; picUrl?: string } | undefined;
+          return {
+            id: String(song.id),
+            name: String(song.name ?? ''),
+            artist: artists?.map(a => a.name).join('/') ?? '',
+            album: album?.name ?? '',
+            duration: Math.floor(((song.duration ?? song.dt ?? 0) as number) / 1000),
+            fee: (song.fee as number) ?? 1,
+            pop: (song.pop as number) ?? 0,
+            cover: album?.picUrl ?? null,
+          };
+        });
       // Sort by popularity descending, then VIP songs first within same pop
-      const sorted = allSongs.sort((a: any, b: any) => {
-        if (b.pop !== a.pop) return b.pop - a.pop;
+      const sorted = allSongs.sort((a, b) => {
+        if ((b.pop ?? 0) !== (a.pop ?? 0)) return (b.pop ?? 0) - (a.pop ?? 0);
         return b.fee - a.fee;
       });
 
@@ -228,13 +233,13 @@ export class MusicService {
       if (config.netease.cookie) url.searchParams.set('cookie', config.netease.cookie);
 
       const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10_000) });
-      const data = await res.json() as any;
-      const song = data.data?.[0] ?? {};
+      const data = await res.json() as { data?: { url?: string | null; br?: number; freeTrialInfo?: unknown }[] };
+      const song = data.data?.[0];
       const result: UrlResult & { isTrial: boolean } = {
         success: true,
-        url: song.url ?? null,
-        br: song.br ?? 0,
-        isTrial: !!song.freeTrialInfo,
+        url: song?.url ?? null,
+        br: song?.br ?? 0,
+        isTrial: !!song?.freeTrialInfo,
       };
 
       // Cache if valid URL
@@ -283,15 +288,20 @@ export class MusicService {
       if (config.netease.cookie) rUrl.searchParams.set('cookie', config.netease.cookie);
 
       const res = await fetch(rUrl.toString(), { signal: AbortSignal.timeout(15_000) });
-      const data = await res.json() as any;
-      const songs: SongInfo[] = (data.data?.dailySongs ?? []).map((s: any) => ({
-        id: String(s.id),
-        name: s.name,
-        artist: s.ar?.map((a: any) => a.name).join('/') ?? '',
-        album: s.al?.name ?? '',
-        duration: 0,
-        fee: 0,
-      }));
+      const data = await res.json() as { data?: { dailySongs?: unknown[] } };
+      const songs: SongInfo[] = ((data.data?.dailySongs ?? []) as unknown[]).map((s: unknown) => {
+        const song = s as Record<string, unknown>;
+        const artists = song.ar as { name: string }[] | undefined;
+        const album = song.al as { name?: string } | undefined;
+        return {
+          id: String(song.id),
+          name: String(song.name ?? ''),
+          artist: artists?.map(a => a.name).join('/') ?? '',
+          album: album?.name ?? '',
+          duration: 0,
+          fee: 0,
+        };
+      });
 
       searchCache.set(cacheKey, songs, SEARCH_CACHE_TTL);
       return { success: true, songs };
@@ -316,15 +326,20 @@ export class MusicService {
       if (config.netease.cookie) url.searchParams.set('cookie', config.netease.cookie);
 
       const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10_000) });
-      const data = await res.json() as any;
-      const comments = data.data?.hotComments ?? data.hotComments ?? data.data?.comments ?? data.comments ?? [];
+      const data = await res.json() as {
+        data?: { hotComments?: unknown[]; comments?: unknown[] };
+        hotComments?: unknown[];
+        comments?: unknown[];
+      };
+      const comments = (data.data?.hotComments ?? data.hotComments ?? data.data?.comments ?? data.comments ?? []) as unknown[];
       if (!comments.length) return null;
 
-      const top = comments[0];
+      const top = comments[0] as Record<string, unknown>;
+      const user = top.user as { nickname?: string } | undefined;
       const result: TopComment = {
-        content: top.content?.replace(/\n/g, ' ') ?? '',
-        nickname: top.user?.nickname ?? '匿名',
-        likedCount: top.likedCount ?? 0,
+        content: String(top.content ?? '').replace(/\n/g, ' '),
+        nickname: user?.nickname ?? '匿名',
+        likedCount: Number(top.likedCount ?? 0),
       };
 
       commentCache.set(cacheKey, result, COMMENT_CACHE_TTL);

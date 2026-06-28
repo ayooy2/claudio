@@ -128,6 +128,7 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
     // 先添加事件监听，再设置 src（浏览器会在 src 赋值后自动开始加载）
     try {
       await new Promise<void>((resolve, reject) => {
+        let timer: ReturnType<typeof setTimeout> | undefined;
         const onCanPlay = () => { cleanup(); resolve(); };
         const onErr = () => {
           cleanup();
@@ -141,19 +142,19 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
         const cleanup = () => {
           audio.removeEventListener('canplay', onCanPlay);
           audio.removeEventListener('error', onErr);
-          clearTimeout(timer);
+          if (timer) clearTimeout(timer);
         };
-        audio.addEventListener('canplay', onCanPlay, { once: true });
-        audio.addEventListener('error', onErr, { once: true });
-        // 设置 src 触发加载
+        // 设置 src 触发加载（先赋值 src，再检查 readyState）
         audio.src = url;
         audio.volume = volumeRef.current;
         // 如果同一首歌已经可以播放，直接 resolve（在 src 赋值后检查）
         if (audio.currentSrc === url && audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
-          cleanup(); resolve(); return;
+          resolve(); return;
         }
-        // 超时
-        const timer = setTimeout(() => { cleanup(); reject(new Error('音频加载超时（30s）')); }, 30000);
+        // 需要等待加载，添加事件监听和超时
+        audio.addEventListener('canplay', onCanPlay, { once: true });
+        audio.addEventListener('error', onErr, { once: true });
+        timer = setTimeout(() => { cleanup(); reject(new Error('音频加载超时（30s）')); }, 30000);
       });
 
       // Check again after await — a newer play() may have started
@@ -235,7 +236,9 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
 
   const toggleMute = useCallback(() => {
     if (!audioRef.current) return;
-    if (isMuted) {
+    // 读取最新 isMuted 状态，避免 stale closure
+    const muted = audioRef.current.volume === 0;
+    if (muted) {
       audioRef.current.volume = volumeBeforeMute;
       volumeRef.current = volumeBeforeMute;
       setVolumeState(volumeBeforeMute);
@@ -248,7 +251,7 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
       setVolumeState(0);
       setIsMuted(true);
     }
-  }, [isMuted, volumeBeforeMute]);
+  }, [volumeBeforeMute]);
 
   const seek = useCallback((pct: number) => {
     if (audioRef.current) {

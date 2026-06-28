@@ -1096,14 +1096,11 @@ export default function App() {
         onPlay={(song) => {
           setQueue(prev => {
             const exists = prev.some(s => s.id === song.id);
-            if (exists) {
-              const idx = prev.findIndex(s => s.id === song.id);
-              setQueueIdx(idx);
-            } else {
-              setQueueIdx(prev.length);
-            }
+            const newIdx = exists ? prev.findIndex(s => s.id === song.id) : prev.length;
+            setQueueIdx(newIdx);
             return exists ? prev : [...prev, song];
           });
+          setCurrentTime(0);
           play(song);
         }}
         currentSong={current}

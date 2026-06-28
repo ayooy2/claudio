@@ -22,10 +22,18 @@ import { getStore } from './store/index.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Module-level cache for wyy.json
-let wyyCache: { mtime: number; songs: any[] } | null = null;
+interface WyySong {
+  name: string;
+  artist?: string;
+  album?: string;
+  duration?: number;
+  fee?: number;
+  cover?: string;
+}
+let wyyCache: { mtime: number; songs: WyySong[] } | null = null;
 const wyyPath = path.join(__dirname, '..', '..', 'wyy.json');
 
-async function readWyyJson(): Promise<any[]> {
+async function readWyyJson(): Promise<WyySong[]> {
   try {
     const stat = await fs.promises.stat(wyyPath);
     const mtime = stat.mtimeMs;
@@ -33,7 +41,7 @@ async function readWyyJson(): Promise<any[]> {
       return wyyCache.songs;
     }
     const raw = await fs.promises.readFile(wyyPath, 'utf-8');
-    const songs = JSON.parse(raw);
+    const songs: WyySong[] = JSON.parse(raw);
     wyyCache = { mtime, songs };
     return songs;
   } catch {
@@ -70,7 +78,7 @@ export function createApp() {
     try {
       const raw = await readWyyJson();
       // Return songs with basic info — URLs resolved on demand via /api/song-url
-      const songs = raw.map((s: any, i: number) => ({
+      const songs = raw.map((s: WyySong, i: number) => ({
         id: `pl_${i}_${s.name}`,
         name: s.name,
         artist: s.artist || '',
@@ -107,10 +115,11 @@ export function createApp() {
 
   // Search songs from Netease API
   app.post('/api/search', async (req, res) => {
-    const { keyword, limit = 20 } = req.body;
-    if (!keyword) return res.status(400).json({ error: '缺少搜索关键词' });
+    const { keyword, limit } = req.body;
+    if (!keyword || typeof keyword !== 'string') return res.status(400).json({ error: '缺少搜索关键词' });
+    const safeLimit = Math.max(1, Math.min(Number(limit) || 20, 50));
     try {
-      const result = await musicService.search(keyword, limit);
+      const result = await musicService.search(keyword, safeLimit);
       res.json(result);
     } catch (err) {
       res.json({ songs: [], error: String(err) });
@@ -166,12 +175,13 @@ export function createApp() {
   // Pre-warm URL cache for multiple songs
   app.post('/api/warmup', async (req, res) => {
     const { songs } = req.body as { songs?: { name: string; artist: string }[] };
-    if (!songs?.length) return res.json({ ok: true, count: 0 });
+    if (!Array.isArray(songs) || songs.length === 0) return res.json({ ok: true, count: 0 });
     // Fire and forget - warmup in background
     let count = 0;
     for (const s of songs.slice(0, 10)) {
       try {
-        const songId = await musicService.resolveSongId(s.name, s.artist);
+        if (!s?.name || typeof s.name !== 'string') continue;
+        const songId = await musicService.resolveSongId(s.name, s.artist || '');
         if (songId) { await musicService.warmupUrl(songId); count++; }
       } catch { /* skip */ }
     }
@@ -204,7 +214,7 @@ export function createApp() {
       lyricUrl.searchParams.set('id', songId);
       if (config.netease.cookie) lyricUrl.searchParams.set('cookie', config.netease.cookie);
       const lyricRes = await fetch(lyricUrl.toString(), { signal: AbortSignal.timeout(10_000) });
-      const lyricData = await lyricRes.json() as any;
+      const lyricData = await lyricRes.json() as { lrc?: { lyric?: string } };
       const rawLyric = lyricData.lrc?.lyric || '';
       if (!rawLyric) return res.json({ lyrics: [] });
 

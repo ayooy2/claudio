@@ -165,11 +165,11 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
     try {
       const parsed = JSON.parse(importText);
       if (!Array.isArray(parsed)) throw new Error('无效格式');
-      const songs: SongInfo[] = parsed.map((item: any, index: number) => ({
+      const songs: SongInfo[] = parsed.map((item: Record<string, unknown>, index: number) => ({
         id: `import_${Date.now()}_${index}`,
-        name: item.name || '未知歌曲',
-        artist: item.artist || '未知歌手',
-        album: item.album || '未知专辑',
+        name: String(item.name || '未知歌曲'),
+        artist: String(item.artist || '未知歌手'),
+        album: String(item.album || '未知专辑'),
         duration: 0,
         fee: 0,
         url: null,

@@ -88,7 +88,7 @@ chatRouter.post('/', async (req, res) => {
 /** Resolve song names → playable tracks. Playlist first, Netease API fallback */
 async function resolveSongs(items: { name: string; artist: string }[]) {
   const pl = getPlaylistService();
-  const resolved: any[] = [];
+  const resolved: { id: string; name: string; artist: string; album: string; duration: number; fee: number; url: string | null; isTrial: boolean; fromPlaylist: boolean }[] = [];
 
   for (const item of items) {
     // 1. Try match in user's playlist
