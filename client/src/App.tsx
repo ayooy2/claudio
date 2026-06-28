@@ -204,17 +204,20 @@ const PlayIndicator = memo(function PlayIndicator({ accent, bottom, right, bg = 
 
 const Particles = memo(function Particles({ scene }: { scene: Scene }) {
   const config = SCENE_CONFIG[scene].particles;
-  if (!config.count) return null;
+  const accent = SCENE_CONFIG[scene].accent;
 
-  const particles = useMemo(() =>
-    Array.from({ length: config.count }, (_, i) => ({
+  // Hooks 必须在条件返回之前调用，以保证调用顺序一致
+  const particles = useMemo(() => {
+    if (!config.count) return [];
+    return Array.from({ length: config.count }, (_, i) => ({
       left: `${(i * 137 + 50) % 100}%`,
       top: `${(i * 89 + 30) % 100}%`,
       delay: `${(i * 0.4) % 6}s`,
       size: config.style === 'lines' ? { w: 1.5, h: 10 } : { w: 2 + (i % 3), h: 2 + (i % 3) },
-    })), [config.count, config.style]);
+    }));
+  }, [config.count, config.style]);
 
-  const accent = SCENE_CONFIG[scene].accent;
+  if (!particles.length) return null;
 
   return (
     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 2 }}>
@@ -231,59 +234,6 @@ const Particles = memo(function Particles({ scene }: { scene: Scene }) {
           filter: config.style === 'dots' ? `blur(${i % 2}px)` : 'none',
         }} />
       ))}
-    </div>
-  );
-});
-
-const QueueDrawer = memo(function QueueDrawer({ queue, queueIdx, isPlaying, show, onClose, onSelect, accent, text, textDim }: {
-  queue: SongInfo[]; queueIdx: number; isPlaying: boolean; show: boolean;
-  onClose: () => void; onSelect: (i: number) => void;
-  accent: string; text: string; textDim: string;
-}) {
-  if (!show) return null;
-  return (
-    <div style={{
-      position: 'absolute', top: 0, left: 0, bottom: 0, width: 300, zIndex: 60,
-      background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(20px)',
-      borderRight: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column',
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-        <span style={{ fontSize: 12, color: textDim, letterSpacing: 2, fontWeight: 600 }}>QUEUE · {queue.length}</span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: textDim, fontSize: 16, cursor: 'pointer' }}>✕</button>
-      </div>
-      <div style={{ flex: 1, overflow: 'auto' }}>
-        {queue.map((s, i) => {
-          const isCurrent = i === queueIdx;
-          return (
-            <div key={i} onClick={() => onSelect(i)} style={{
-              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', cursor: 'pointer',
-              background: isCurrent ? `${accent}15` : 'transparent',
-              borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.2s',
-            }}>
-              <span style={{ width: 18, fontSize: 10, color: isCurrent ? accent : 'rgba(255,255,255,0.2)', textAlign: 'right', fontWeight: 600 }}>{String(i+1).padStart(2,'0')}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, color: isCurrent ? text : textDim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: isCurrent ? 500 : 300 }}>{s.name}</div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)' }}>{s.artist}</div>
-              </div>
-              {isCurrent && (
-                isPlaying ? (
-                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 14 }}>
-                    {[0, 1, 2].map(j => (
-                      <div key={j} style={{
-                        width: 3, borderRadius: 1, background: accent,
-                        animation: `viz-bar 0.6s ease-in-out ${j * 0.15}s infinite alternate`,
-                        height: 6 + (j % 2) * 4,
-                      }} />
-                    ))}
-                  </div>
-                ) : (
-                  <span style={{ color: accent, fontSize: 10 }}>❚❚</span>
-                )
-              )}
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 });
