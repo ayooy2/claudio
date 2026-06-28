@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import type { SongInfo } from '../hooks/usePlayer.js';
 import { apiUrl } from '../lib/api.js';
 
@@ -37,6 +37,7 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [expandedPlaylists, setExpandedPlaylists] = useState<Set<string>>(new Set(['default']));
+  const fetchedPlaylistIds = useRef<Set<string>>(new Set());
 
   // 加载歌单列表
   const fetchPlaylists = useCallback(async () => {
@@ -64,19 +65,21 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
     }
   }, []);
 
-  // 加载指定歌单的歌曲
+  // 加载指定歌单的歌曲（使用 ref 追踪已加载 ID，避免不必要的重请求）
   const fetchPlaylistSongs = useCallback(async (playlistId: string) => {
-    if (playlistId === 'default' || playlistSongs[playlistId]) return;
+    if (playlistId === 'default' || fetchedPlaylistIds.current.has(playlistId)) return;
+    fetchedPlaylistIds.current.add(playlistId);
     try {
       const res = await fetch(apiUrl(`/api/playlists/${playlistId}/songs`));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setPlaylistSongs(prev => ({ ...prev, [playlistId]: data.songs || [] }));
     } catch (err) {
+      fetchedPlaylistIds.current.delete(playlistId); // 失败时允许重试
       setError('加载歌单歌曲失败');
       setTimeout(() => setError(null), 3000);
     }
-  }, [playlistSongs]);
+  }, []);
 
   // 初始化加载
   useEffect(() => {
@@ -150,11 +153,12 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
         ...prev,
         [selectedPlaylistId]: (prev[selectedPlaylistId] || []).filter(s => s.id !== song.id),
       }));
+      await fetchPlaylists(); // 刷新歌单列表以更新歌曲计数
     } catch (err) {
       setError('移除歌曲失败');
       setTimeout(() => setError(null), 3000);
     }
-  }, [selectedPlaylistId]);
+  }, [selectedPlaylistId, fetchPlaylists]);
 
   // 导入歌单
   const handleImport = useCallback(async () => {
