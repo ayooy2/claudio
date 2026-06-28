@@ -372,7 +372,8 @@ export function createApp() {
 
   app.delete('/api/playlists/:id', (req, res) => {
     const ok = store.deletePlaylist(req.params.id);
-    res.json({ ok });
+    if (!ok) return res.status(404).json({ error: '歌单不存在' });
+    res.json({ ok: true });
   });
 
   // Get songs in a playlist
@@ -402,8 +403,11 @@ export function createApp() {
 
   // Remove a song from a playlist
   app.delete('/api/playlists/:id/songs/:songId', (req, res) => {
+    const playlist = store.getPlaylist(req.params.id);
+    if (!playlist) return res.status(404).json({ error: '歌单不存在' });
     const ok = store.removeSongFromPlaylist(req.params.id, req.params.songId);
-    res.json({ ok });
+    if (!ok) return res.status(404).json({ error: '歌曲不存在于歌单中' });
+    res.json({ ok: true });
   });
 
   // ===== SPA fallback =====
