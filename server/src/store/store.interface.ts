@@ -21,10 +21,21 @@ export interface PlanEntry {
   notes: string | null;
 }
 
+export interface PlaylistSong {
+  id: string;
+  name: string;
+  artist: string;
+  album: string;
+  duration: number;
+  fee: number;
+  cover?: string | null;
+}
+
 export interface Playlist {
   id: string;
   name: string;
   description: string;
+  songs: PlaylistSong[];
   songCount: number;
   isDefault: boolean;
   createdAt: string;
@@ -46,8 +57,11 @@ export interface IStore {
 
   // Playlists
   getPlaylists(): Playlist[];
+  getPlaylist(id: string): Playlist | undefined;
   addPlaylist(name: string, description?: string): Playlist;
   deletePlaylist(id: string): boolean;
+  addSongsToPlaylist(playlistId: string, songs: PlaylistSong[]): boolean;
+  removeSongFromPlaylist(playlistId: string, songId: string): boolean;
 
   // Preferences
   getPref(key: string): string | null;

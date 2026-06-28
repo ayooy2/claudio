@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect, useMemo, memo } from 'react';
 import { usePlayer, type SongInfo } from './hooks/usePlayer.js';
 import { useSocket } from './hooks/useSocket.js';
 import SearchPanel from './components/SearchPanel.js';
+import PlaylistPanel from './components/PlaylistPanel.js';
 import { IconQueue, IconPrev, IconNext, IconPlay, IconPause, IconLoading, IconHeart, IconLyrics, IconVolume, IconSequence, IconShuffle, IconLoop } from './components/Icons.js';
 import { apiUrl, toAbsoluteUrl } from './lib/api.js';
 
@@ -877,17 +878,17 @@ export default function App() {
                   background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 40%, transparent 60%, rgba(255,255,255,0.03) 100%)',
                   pointerEvents: 'none',
                 }} />
-                {/* 封面图（居中圆形，占比约60%） */}
+                {/* 封面图（居中圆形，占比约72%） */}
                 {current?.cover ? (
                   <img src={current.cover} alt={current.name} style={{
-                    width: '60%', height: '60%', borderRadius: '50%', objectFit: 'cover',
+                    width: '72%', height: '72%', borderRadius: '50%', objectFit: 'cover',
                     position: 'relative', zIndex: 1,
                     border: '3px solid rgba(255,255,255,0.1)',
                     boxShadow: '0 0 20px rgba(0,0,0,0.5)',
                   }} />
                 ) : (
                   <div style={{
-                    width: '60%', height: '60%', borderRadius: '50%',
+                    width: '72%', height: '72%', borderRadius: '50%',
                     background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     position: 'relative', zIndex: 1,
                   }}>
@@ -1141,8 +1142,21 @@ export default function App() {
         </div>
       </div>
 
-      <QueueDrawer queue={queue} queueIdx={queueIdx} isPlaying={isPlaying} show={showQueue}
-        onClose={() => setShowQueue(false)} onSelect={handleSelectSong}
+      <PlaylistPanel show={showQueue} onClose={() => setShowQueue(false)}
+        onPlay={(song) => {
+          setQueue(prev => {
+            const exists = prev.some(s => s.id === song.id);
+            if (exists) {
+              const idx = prev.findIndex(s => s.id === song.id);
+              setQueueIdx(idx);
+            } else {
+              setQueueIdx(prev.length);
+            }
+            return exists ? prev : [...prev, song];
+          });
+          play(song);
+        }}
+        currentSong={current}
         accent={sc.accent} text={sc.text} textDim={sc.textDim} />
 
       {/* Lyrics Panel - 沉浸式歌词 */}

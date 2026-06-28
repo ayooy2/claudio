@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { IStore, Message, Play, PlanEntry, Playlist } from './store.interface.js';
+import type { IStore, Message, Play, PlanEntry, Playlist, PlaylistSong } from './store.interface.js';
 import { logger } from '../common/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -126,11 +126,16 @@ export class JsonStore implements IStore {
     return [...this.data.playlists];
   }
 
+  getPlaylist(id: string): Playlist | undefined {
+    return this.data.playlists.find(p => p.id === id);
+  }
+
   addPlaylist(name: string, description = ''): Playlist {
     const playlist: Playlist = {
       id: String(Date.now()),
       name,
       description,
+      songs: [],
       songCount: 0,
       isDefault: false,
       createdAt: new Date().toISOString(),
@@ -144,6 +149,33 @@ export class JsonStore implements IStore {
     const idx = this.data.playlists.findIndex(p => p.id === id);
     if (idx < 0) return false;
     this.data.playlists.splice(idx, 1);
+    this.save();
+    return true;
+  }
+
+  addSongsToPlaylist(playlistId: string, songs: PlaylistSong[]): boolean {
+    const playlist = this.data.playlists.find(p => p.id === playlistId);
+    if (!playlist) return false;
+    // Avoid duplicates by id
+    const existingIds = new Set(playlist.songs.map(s => s.id));
+    for (const song of songs) {
+      if (!existingIds.has(song.id)) {
+        playlist.songs.push(song);
+        existingIds.add(song.id);
+      }
+    }
+    playlist.songCount = playlist.songs.length;
+    this.save();
+    return true;
+  }
+
+  removeSongFromPlaylist(playlistId: string, songId: string): boolean {
+    const playlist = this.data.playlists.find(p => p.id === playlistId);
+    if (!playlist) return false;
+    const idx = playlist.songs.findIndex(s => s.id === songId);
+    if (idx < 0) return false;
+    playlist.songs.splice(idx, 1);
+    playlist.songCount = playlist.songs.length;
     this.save();
     return true;
   }

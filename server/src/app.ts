@@ -375,6 +375,37 @@ export function createApp() {
     res.json({ ok });
   });
 
+  // Get songs in a playlist
+  app.get('/api/playlists/:id/songs', (req, res) => {
+    const playlist = store.getPlaylist(req.params.id);
+    if (!playlist) return res.status(404).json({ error: '歌单不存在' });
+    res.json({ songs: playlist.songs, total: playlist.songs.length });
+  });
+
+  // Add songs to a playlist
+  app.post('/api/playlists/:id/songs', (req, res) => {
+    const { songs } = req.body as { songs?: { id: string; name: string; artist: string; album?: string; duration?: number; fee?: number; cover?: string }[] };
+    if (!songs?.length) return res.status(400).json({ error: '歌曲列表不能为空' });
+    const playlistSongs = songs.map(s => ({
+      id: s.id,
+      name: s.name,
+      artist: s.artist,
+      album: s.album || '',
+      duration: s.duration || 0,
+      fee: s.fee || 0,
+      cover: s.cover || null,
+    }));
+    const ok = store.addSongsToPlaylist(req.params.id, playlistSongs);
+    if (!ok) return res.status(404).json({ error: '歌单不存在' });
+    res.json({ ok: true, added: playlistSongs.length });
+  });
+
+  // Remove a song from a playlist
+  app.delete('/api/playlists/:id/songs/:songId', (req, res) => {
+    const ok = store.removeSongFromPlaylist(req.params.id, req.params.songId);
+    res.json({ ok });
+  });
+
   // ===== SPA fallback =====
   app.get('*', (_req, res, next) => {
     if (_req.path.startsWith('/api')) return next();
