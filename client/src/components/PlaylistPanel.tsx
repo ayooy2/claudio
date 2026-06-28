@@ -220,6 +220,13 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
       background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(20px)',
       borderRight: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column',
     }}>
+      <style>{`
+        .playlist-scroll::-webkit-scrollbar { width: 4px; }
+        .playlist-scroll::-webkit-scrollbar-track { background: transparent; }
+        .playlist-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+        .playlist-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+        @keyframes searchPulse { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
+      `}</style>
       {/* 标题栏 */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -232,7 +239,7 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
       {/* 错误提示 */}
       {error && (
         <div style={{
-          margin: '8px 16px', padding: '8px 12px', borderRadius: 6,
+          margin: '8px 16px', padding: '8px 12px', borderRadius: 8,
           background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.3)',
           color: '#fca5a5', fontSize: 11, textAlign: 'center',
         }}>
@@ -256,18 +263,18 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
                 onChange={e => setNewPlaylistName(e.target.value)}
                 placeholder="新歌单名称"
                 style={{
-                  flex: 1, padding: '6px 8px', borderRadius: 4,
+                  flex: 1, padding: '6px 8px', borderRadius: 8,
                   border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)',
                   color: text, fontSize: 11, outline: 'none',
                 }}
               />
               <button onClick={handleCreatePlaylist} style={{
-                padding: '6px 10px', borderRadius: 4, border: 'none',
+                padding: '6px 10px', borderRadius: 8, border: 'none',
                 background: accent, color: '#000', fontSize: 11, cursor: 'pointer', fontWeight: 600,
               }}>+</button>
             </div>
             <button onClick={() => setShowImport(!showImport)} style={{
-              marginTop: 6, width: '100%', padding: '6px', borderRadius: 4,
+              marginTop: 6, width: '100%', padding: '6px', borderRadius: 8,
               border: '1px solid rgba(255,255,255,0.1)', background: 'transparent',
               color: textDim, fontSize: 10, cursor: 'pointer',
             }}>
@@ -283,13 +290,13 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
                 onChange={e => setImportText(e.target.value)}
                 placeholder={'[\n  {"name":"歌名","artist":"歌手","album":"专辑"}\n]'}
                 style={{
-                  width: '100%', height: 80, padding: '8px', borderRadius: 4,
+                  width: '100%', height: 80, padding: '8px', borderRadius: 8,
                   border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)',
                   color: text, fontSize: 10, outline: 'none', resize: 'none',
                 }}
               />
               <button onClick={handleImport} style={{
-                marginTop: 6, width: '100%', padding: '6px', borderRadius: 4,
+                marginTop: 6, width: '100%', padding: '6px', borderRadius: 8,
                 border: 'none', background: accent, color: '#000',
                 fontSize: 11, cursor: 'pointer', fontWeight: 600,
               }}>确认导入</button>
@@ -297,7 +304,7 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
           )}
 
           {/* 歌单列表 */}
-          <div style={{ flex: 1, overflow: 'auto' }}>
+          <div className="playlist-scroll" style={{ flex: 1, overflow: 'auto' }}>
             {/* 默认歌单 */}
             <div
               onClick={() => { setSelectedPlaylistId('default'); toggleExpand('default'); }}
@@ -372,7 +379,7 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
                   else { setSortKey(key); setSortDir('asc'); }
                 }}
                 style={{
-                  padding: '3px 8px', borderRadius: 3, border: 'none',
+                  padding: '3px 8px', borderRadius: 6, border: 'none',
                   background: sortKey === key ? accent : 'rgba(255,255,255,0.08)',
                   color: sortKey === key ? '#000' : textDim,
                   fontSize: 10, cursor: 'pointer', fontWeight: sortKey === key ? 600 : 400,
@@ -385,7 +392,7 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
           </div>
 
           {/* 歌曲列表 */}
-          <div style={{ flex: 1, overflow: 'auto' }}>
+          <div className="playlist-scroll" style={{ flex: 1, overflow: 'auto' }}>
             {loading ? (
               <div style={{ textAlign: 'center', padding: 40, color: textDim }}>
                 <div style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>

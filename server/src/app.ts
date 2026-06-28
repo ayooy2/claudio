@@ -139,6 +139,7 @@ export function createApp() {
   // Get song URL by ID or by name+artist (with caching)
   app.get('/api/song-url', async (req, res) => {
     const { id, name, artist, force, br } = req.query as { id?: string; name?: string; artist?: string; force?: string; br?: string };
+    if (!id && !name) return res.status(400).json({ url: null, error: '缺少 id 或 name 参数' });
     try {
       let songId = id;
       let cover: string | null = null;

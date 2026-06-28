@@ -315,7 +315,7 @@ export class MusicService {
       url.searchParams.set('limit', '1');
       if (config.netease.cookie) url.searchParams.set('cookie', config.netease.cookie);
 
-      const res = await fetch(url.toString());
+      const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10_000) });
       const data = await res.json() as any;
       const comments = data.data?.hotComments ?? data.hotComments ?? data.data?.comments ?? data.comments ?? [];
       if (!comments.length) return null;
