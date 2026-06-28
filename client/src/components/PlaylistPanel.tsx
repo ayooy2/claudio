@@ -21,7 +21,6 @@ interface Props {
   currentSong: SongInfo | null;
 }
 
-type SortKey = 'name' | 'artist' | 'album';
 type SortDir = 'asc' | 'desc';
 
 export default memo(function PlaylistPanel({ show, onClose, accent, text, textDim, onPlay, currentSong }: Props) {
@@ -34,7 +33,6 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState('');
-  const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [expandedPlaylists, setExpandedPlaylists] = useState<Set<string>>(new Set(['default']));
   const fetchedPlaylistIds = useRef<Set<string>>(new Set());
@@ -95,16 +93,11 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
     }
   }, [selectedPlaylistId, fetchPlaylistSongs]);
 
-  // 排序后的歌曲列表
+  // 排序后的歌曲列表（按添加顺序）
   const sortedSongs = useMemo(() => {
     const songs = selectedPlaylistId === 'default' ? defaultSongs : (playlistSongs[selectedPlaylistId] || []);
-    const sorted = [...songs].sort((a, b) => {
-      const valA = (a[sortKey] || '').toLowerCase();
-      const valB = (b[sortKey] || '').toLowerCase();
-      return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-    });
-    return sorted;
-  }, [selectedPlaylistId, defaultSongs, playlistSongs, sortKey, sortDir]);
+    return sortDir === 'asc' ? songs : [...songs].reverse();
+  }, [selectedPlaylistId, defaultSongs, playlistSongs, sortDir]);
 
   // 切换排序方向
   const toggleSortDir = useCallback(() => {
@@ -371,24 +364,16 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
             display: 'flex', gap: 6, alignItems: 'center',
           }}>
             <span style={{ fontSize: 10, color: textDim }}>排序:</span>
-            {(['name', 'artist', 'album'] as SortKey[]).map(key => (
-              <button
-                key={key}
-                onClick={() => {
-                  if (sortKey === key) { toggleSortDir(); }
-                  else { setSortKey(key); setSortDir('asc'); }
-                }}
-                style={{
-                  padding: '3px 8px', borderRadius: 6, border: 'none',
-                  background: sortKey === key ? accent : 'rgba(255,255,255,0.08)',
-                  color: sortKey === key ? '#000' : textDim,
-                  fontSize: 10, cursor: 'pointer', fontWeight: sortKey === key ? 600 : 400,
-                }}
-              >
-                {key === 'name' ? '歌名' : key === 'artist' ? '歌手' : '专辑'}
-                {sortKey === key && (sortDir === 'asc' ? ' ↑' : ' ↓')}
-              </button>
-            ))}
+            <button
+              onClick={toggleSortDir}
+              style={{
+                padding: '3px 8px', borderRadius: 6, border: 'none',
+                background: accent, color: '#000',
+                fontSize: 10, cursor: 'pointer', fontWeight: 600,
+              }}
+            >
+              添加顺序 {sortDir === 'asc' ? '↑' : '↓'}
+            </button>
           </div>
 
           {/* 歌曲列表 */}

@@ -1233,8 +1233,8 @@ export default function App() {
               }}>⏮</button>
               <button onClick={handleToggle} style={{
                 width: 46, height: 46, borderRadius: '50%', border: 'none', cursor: 'pointer',
-                background: 'rgba(255,255,255,0.12)', color: sc.text,
-                fontSize: 18, backdropFilter: 'blur(8px)',
+                background: 'transparent', color: sc.text,
+                fontSize: 18,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all 0.2s ease',
               }}>{isPlaying ? '⏸' : '▶'}</button>
