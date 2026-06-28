@@ -1038,9 +1038,9 @@ export default function App() {
             {/* Play/Pause */}
             <button onClick={handleToggle} style={{
               width: 48, height: 48, borderRadius: '50%', border: 'none', cursor: 'pointer',
-              background: `${sc.accent}18`, color: sc.accent,
+              background: 'transparent', color: sc.accent,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'all 0.2s ease', boxShadow: `0 0 16px ${sc.accent}15`,
+              transition: 'all 0.2s ease',
               opacity: isLoading ? 0.6 : 1,
             }}>
               {isLoading ? <IconLoading /> : isPlaying ? <IconPause /> : <IconPlay />}
