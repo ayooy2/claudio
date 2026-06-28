@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import http from 'node:http';
 import fs from 'node:fs';
 import { Server as SocketIOServer } from 'socket.io';
@@ -8,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 import { config } from './config.js';
 import { logger } from './common/logger.js';
-import { requestLogger, errorHandler, notFound } from './common/middleware.js';
+import { requestLogger, errorHandler, notFound, rateLimiter } from './common/middleware.js';
 import { stateRouter } from './routes/state.router.js';
 import { prefsRouter } from './routes/prefs.router.js';
 import { chatRouter } from './routes/chat.router.js';
@@ -55,9 +56,15 @@ export function createApp() {
   const allowedOrigins = (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
   const io = new SocketIOServer(server, { cors: { origin: allowedOrigins }, path: '/ws' });
 
+  // Security headers
+  app.use(helmet({
+    contentSecurityPolicy: false, // SPA 需要内联样式
+    crossOriginEmbedderPolicy: false,
+  }));
   app.use(cors({ origin: allowedOrigins }));
-  app.use(express.json());
+  app.use(express.json({ limit: '1mb' })); // 限制请求体大小
   app.use(requestLogger);
+  app.use('/api', rateLimiter); // API 速率限制
 
   const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');
   app.use(express.static(clientDist));
@@ -117,9 +124,11 @@ export function createApp() {
   app.post('/api/search', async (req, res) => {
     const { keyword, limit } = req.body;
     if (!keyword || typeof keyword !== 'string') return res.status(400).json({ error: '缺少搜索关键词' });
+    const sanitized = keyword.trim().slice(0, 100); // 限制长度，防止过长输入
+    if (!sanitized) return res.status(400).json({ error: '缺少搜索关键词' });
     const safeLimit = Math.max(1, Math.min(Number(limit) || 20, 50));
     try {
-      const result = await musicService.search(keyword, safeLimit);
+      const result = await musicService.search(sanitized, safeLimit);
       res.json(result);
     } catch (err) {
       res.json({ songs: [], error: String(err) });
@@ -377,7 +386,9 @@ export function createApp() {
   app.post('/api/playlists', (req, res) => {
     const { name, description } = req.body as { name?: string; description?: string };
     if (!name?.trim()) return res.status(400).json({ error: '歌单名称不能为空' });
-    const playlist = store.addPlaylist(name.trim(), description?.trim());
+    const sanitizedName = name.trim().slice(0, 50);
+    const sanitizedDesc = description?.trim().slice(0, 200);
+    const playlist = store.addPlaylist(sanitizedName, sanitizedDesc);
     res.json(playlist);
   });
 
@@ -438,13 +449,21 @@ export function createApp() {
     const state = playerService.getState();
     socket.emit('init', { current: state.current, prefs: getStore().getAllPrefs() });
     socket.on('player_action', (msg) => {
+      if (!msg || typeof msg !== 'object') return;
+      const validActions = ['next', 'prev', 'toggle', 'pause', 'resume', 'volume'] as const;
+      if (!validActions.includes(msg.action)) return;
       switch (msg.action) {
         case 'next': playerService.next(); break;
         case 'prev': playerService.prev(); break;
         case 'toggle': playerService.togglePlay(); break;
         case 'pause': playerService.pause(); break;
         case 'resume': playerService.resume(); break;
-        case 'volume': playerService.setVolume(Number(msg.value) / 100); break;
+        case 'volume': {
+          const vol = Number(msg.value);
+          if (isNaN(vol) || vol < 0 || vol > 100) return;
+          playerService.setVolume(vol / 100);
+          break;
+        }
       }
       io.emit('state_update', playerService.getState());
     });
