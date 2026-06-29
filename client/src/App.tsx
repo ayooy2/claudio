@@ -805,7 +805,7 @@ export default function App() {
               {/* 整个唱片（旋转） */}
               <div style={{
                 width: '100%', height: '100%', borderRadius: '50%',
-                background: '#111',
+                background: 'transparent',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 position: 'relative',
                 animation: isPlaying ? 'spin 20s linear infinite' : 'none',
