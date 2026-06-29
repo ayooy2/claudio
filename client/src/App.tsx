@@ -182,14 +182,14 @@ const DotDigit = memo(function DotDigit({ ch, size = 10, gap = 3 }: { ch: string
   );
 });
 
-const PlayIndicator = memo(function PlayIndicator({ accent, bottom, right, bg = 'rgba(20,20,30,0.9)', border }: {
+const PlayIndicator = memo(function PlayIndicator({ accent, bottom, right, bg = 'transparent', border }: {
   accent: string; bottom: number | string; right: number | string; bg?: string; border?: string;
 }) {
   return (
     <div style={{
       position: 'absolute', bottom, right,
       width: 28, height: 28, borderRadius: '50%',
-      background: bg, backdropFilter: 'blur(4px)',
+      background: bg,
       border: border || 'none',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 5,
     }}>
@@ -878,7 +878,7 @@ export default function App() {
                   </div>
                 )}
                 {/* 播放指示器 */}
-                {isPlaying && <PlayIndicator accent={sc.accent} bottom={12} right={12} bg="rgba(0,0,0,0.6)" />}
+                {isPlaying && <PlayIndicator accent={sc.accent} bottom={12} right={12} />}
               </div>
             </div>
           )}
