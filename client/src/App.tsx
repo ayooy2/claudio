@@ -809,7 +809,6 @@ export default function App() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 position: 'relative',
                 animation: isPlaying ? 'spin 20s linear infinite' : 'none',
-                boxShadow: isPlaying ? `0 0 60px rgba(0,0,0,0.6)` : '0 0 30px rgba(0,0,0,0.3)',
                 transition: 'box-shadow 0.5s ease',
               }}>
                 {/* 纹理沟槽 */}
@@ -833,8 +832,6 @@ export default function App() {
                   <img src={current.cover} alt={current.name} style={{
                     width: '72%', height: '72%', borderRadius: '50%', objectFit: 'cover',
                     position: 'relative', zIndex: 1,
-                    border: '3px solid rgba(255,255,255,0.1)',
-                    boxShadow: '0 0 20px rgba(0,0,0,0.5)',
                   }} />
                 ) : (
                   <div style={{
