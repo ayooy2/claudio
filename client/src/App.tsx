@@ -3,7 +3,7 @@ import { usePlayer, type SongInfo } from './hooks/usePlayer.js';
 import { useSocket } from './hooks/useSocket.js';
 import SearchPanel from './components/SearchPanel.js';
 import PlaylistPanel from './components/PlaylistPanel.js';
-import { IconQueue, IconPrev, IconNext, IconPlay, IconPause, IconLoading, IconHeart, IconLyrics, IconVolume, IconSequence, IconShuffle, IconLoop } from './components/Icons.js';
+import { IconQueue, IconPrev, IconNext, IconPlay, IconPause, IconLoading, IconHeart, IconLyrics, IconVolume, IconSequence, IconShuffle, IconLoop, IconSearch, IconSettings } from './components/Icons.js';
 import { apiUrl, toAbsoluteUrl } from './lib/api.js';
 
 // ===== LocalStorage helpers =====
@@ -726,52 +726,6 @@ export default function App() {
 
       {showParticles && <Particles scene={scene} />}
 
-      {/* Header */}
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: '14px 20px', flexShrink: 0, zIndex: 10,
-        background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(255,255,255,0.04)',
-      }}>
-        <span style={{
-          fontSize: 13, fontWeight: 600, letterSpacing: 4, color: sc.text,
-          textTransform: 'uppercase', opacity: 0.8,
-        }}>Claudio</span>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button onClick={() => setShowSearch(true)} style={{
-            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 20, cursor: 'pointer', padding: '5px 14px',
-            color: 'rgba(255,255,255,0.6)', fontSize: 11, letterSpacing: 0.5,
-            transition: 'all 0.2s ease',
-          }}>搜索</button>
-          <button onClick={() => {
-            const scenes = Object.keys(SCENE_CONFIG) as Scene[];
-            switchScene(scenes[(scenes.indexOf(scene) + 1) % scenes.length]);
-          }} style={{
-            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 20, cursor: 'pointer', padding: '5px 14px',
-            color: sc.accent, fontSize: 11, letterSpacing: 0.5,
-            transition: 'all 0.2s ease',
-          }}>{sc.name}</button>
-          <button onClick={() => {
-            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-            else document.exitFullscreen();
-          }} style={{
-            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 20, cursor: 'pointer', padding: '5px 10px',
-            color: 'rgba(255,255,255,0.5)', fontSize: 12,
-            transition: 'all 0.2s ease',
-          }}>⛶</button>
-          <button onClick={() => setShowSettings(!showSettings)} style={{
-            background: showSettings ? `${sc.accent}20` : 'rgba(255,255,255,0.06)',
-            border: `1px solid ${showSettings ? `${sc.accent}30` : 'rgba(255,255,255,0.08)'}`,
-            borderRadius: 20, cursor: 'pointer', padding: '5px 10px',
-            color: showSettings ? sc.accent : 'rgba(255,255,255,0.5)', fontSize: 12,
-            transition: 'all 0.2s ease',
-          }}>⚙</button>
-        </div>
-      </div>
-
       {/* Central Area: Clock + Cover */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 10, minHeight: 0, overflow: 'auto', padding: '0 16px' }}>
         {/* Clock - 过渡动画 */}
@@ -1085,6 +1039,25 @@ export default function App() {
                   opacity: volumeVisible ? 0.8 : 0.3, transition: 'opacity 0.3s',
                 }} />
             </div>
+
+            {/* Search */}
+            <button onClick={() => setShowSearch(true)} style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
+              transition: 'all 0.2s ease', opacity: 0.7,
+            }} onMouseEnter={e => e.currentTarget.style.opacity = '1'} onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}>
+              <IconSearch />
+            </button>
+
+            {/* Settings */}
+            <button onClick={() => setShowSettings(!showSettings)} style={{
+              background: showSettings ? `${sc.accent}15` : 'none',
+              border: 'none', borderRadius: 6, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
+              transition: 'all 0.2s ease', opacity: showSettings ? 1 : 0.7,
+            }} onMouseEnter={e => { if (!showSettings) e.currentTarget.style.opacity = '1'; }} onMouseLeave={e => { if (!showSettings) e.currentTarget.style.opacity = '0.7'; }}>
+              <IconSettings />
+            </button>
           </div>
         </div>
       </div>
