@@ -809,7 +809,7 @@ export default function App() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 position: 'relative',
                 animation: isPlaying ? 'spin 20s linear infinite' : 'none',
-                boxShadow: '0 0 0 5px rgba(30,30,40,0.95)',
+                boxShadow: '0 0 0 2px rgba(30,30,40,0.95)',
               }}>
                 {/* 黑胶纹路 */}
                 <div style={{
