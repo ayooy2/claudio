@@ -80,6 +80,38 @@ export function createApp() {
     } catch { res.json({ songs: [], total: 0 }); }
   });
 
+  // Fetch Netease playlist by ID
+  app.get('/api/playlist/:id', async (req, res) => {
+    const { id } = req.params;
+    if (!id || !/^\d+$/.test(id)) return res.status(400).json({ error: '无效歌单ID' });
+    try {
+      const url = new URL('/playlist/track/all', config.netease.apiBase);
+      url.searchParams.set('id', id);
+      url.searchParams.set('limit', '100');
+      if (config.netease.cookie) url.searchParams.set('cookie', config.netease.cookie);
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`Netease API ${r.status}`);
+      const data = await r.json();
+      const tracks = (data.songs || data.privileges || []).map((t: Record<string, unknown>) => {
+        const ar = t.ar as Array<{ name: string }> | undefined;
+        const al = t.al as { name: string; picUrl?: string } | undefined;
+        return {
+          id: String(t.id || ''),
+          name: String(t.name || '未知歌曲'),
+          artist: ar?.map((a) => a.name).join('/') || '未知歌手',
+          album: al?.name || '未知专辑',
+          duration: Number(t.dt) || 0,
+          fee: Number(t.fee) || 0,
+          cover: al?.picUrl || null,
+        };
+      });
+      res.json({ songs: tracks, total: tracks.length });
+    } catch (err) {
+      logger.error('Failed to fetch Netease playlist', err);
+      res.status(500).json({ error: '获取歌单失败' });
+    }
+  });
+
   // Get playlist songs (basic info only, no URL resolution)
   app.get('/api/playlist-resolved', async (_req, res) => {
     try {

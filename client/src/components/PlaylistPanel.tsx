@@ -153,47 +153,148 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
     }
   }, [selectedPlaylistId, fetchPlaylists]);
 
+  // 解析导入文本为歌曲列表
+  const parseImportText = useCallback((text: string): { name: string; songs: SongInfo[] } | null => {
+    const trimmed = text.trim();
+    if (!trimmed) return null;
+
+    // 1. 尝试解析为网易云歌单链接
+    const neteaseMatch = trimmed.match(/music\.163\.com\/#\/playlist\?id=(\d+)/)
+      || trimmed.match(/music\.163\.com\/playlist\?id=(\d+)/)
+      || trimmed.match(/music\.163\.com\/.*[?&]id=(\d+)/);
+    if (neteaseMatch) {
+      return { name: `netease_${neteaseMatch[1]}`, songs: [], _neteaseId: neteaseMatch[1] } as unknown as { name: string; songs: SongInfo[] };
+    }
+
+    // 2. 尝试解析为 JSON 数组
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const songs: SongInfo[] = parsed.map((item: Record<string, unknown>, index: number) => ({
+            id: `import_${Date.now()}_${index}`,
+            name: String(item.name || item.title || '未知歌曲'),
+            artist: String(item.artist || item.singer || '未知歌手'),
+            album: String(item.album || '未知专辑'),
+            duration: Number(item.duration) || 0,
+            fee: 0,
+            url: null,
+          }));
+          return { name: `导入歌单 ${new Date().toLocaleTimeString()}`, songs };
+        }
+      } catch { /* not JSON */ }
+    }
+
+    // 3. 尝试解析为 M3U/M3U8
+    if (trimmed.startsWith('#EXTM3U') || trimmed.startsWith('#EXTINF')) {
+      const lines = trimmed.split('\n');
+      const songs: SongInfo[] = [];
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.startsWith('#EXTINF:')) {
+          const infoMatch = line.match(/#EXTINF:\d+,(.+?)\s*-\s*(.+)/);
+          const nextLine = (i + 1 < lines.length) ? lines[i + 1].trim() : '';
+          if (infoMatch) {
+            songs.push({
+              id: `import_${Date.now()}_${songs.length}`,
+              name: infoMatch[2].trim(),
+              artist: infoMatch[1].trim(),
+              album: '未知专辑',
+              duration: 0, fee: 0, url: null,
+            });
+          } else if (nextLine && !nextLine.startsWith('#')) {
+            songs.push({
+              id: `import_${Date.now()}_${songs.length}`,
+              name: line.replace('#EXTINF:\d+,', '').trim() || nextLine.split('/').pop() || '未知歌曲',
+              artist: '未知歌手',
+              album: '未知专辑',
+              duration: 0, fee: 0, url: null,
+            });
+          }
+        }
+      }
+      if (songs.length > 0) return { name: `导入歌单 ${new Date().toLocaleTimeString()}`, songs };
+    }
+
+    // 4. 尝试解析为 CSV/TSV（每行: 歌名,歌手,专辑）
+    const csvLines = trimmed.split('\n').filter(l => l.trim());
+    if (csvLines.length >= 1) {
+      const delimiter = csvLines[0].includes('\t') ? '\t' : ',';
+      const songs: SongInfo[] = [];
+      for (const line of csvLines) {
+        const parts = line.split(delimiter).map(s => s.trim().replace(/^["']|["']$/g, ''));
+        if (parts.length >= 2) {
+          songs.push({
+            id: `import_${Date.now()}_${songs.length}`,
+            name: parts[0] || '未知歌曲',
+            artist: parts[1] || '未知歌手',
+            album: parts[2] || '未知专辑',
+            duration: 0, fee: 0, url: null,
+          });
+        }
+      }
+      if (songs.length > 0) return { name: `导入歌单 ${new Date().toLocaleTimeString()}`, songs };
+    }
+
+    return null;
+  }, []);
+
   // 导入歌单
   const handleImport = useCallback(async () => {
     try {
-      const parsed = JSON.parse(importText);
-      if (!Array.isArray(parsed)) throw new Error('无效格式');
-      const songs: SongInfo[] = parsed.map((item: Record<string, unknown>, index: number) => ({
-        id: `import_${Date.now()}_${index}`,
-        name: String(item.name || '未知歌曲'),
-        artist: String(item.artist || '未知歌手'),
-        album: String(item.album || '未知专辑'),
-        duration: 0,
-        fee: 0,
-        url: null,
-      }));
+      const result = parseImportText(importText);
+      if (!result) throw new Error('无法识别格式');
 
       // 创建新歌单
       const createRes = await fetch(apiUrl('/api/playlists'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: `导入歌单 ${new Date().toLocaleTimeString()}` }),
+        body: JSON.stringify({ name: result.name }),
       });
       if (!createRes.ok) throw new Error(`HTTP ${createRes.status}`);
       const newPlaylist = await createRes.json();
 
-      // 添加歌曲到歌单
-      const addRes = await fetch(apiUrl(`/api/playlists/${newPlaylist.id}/songs`), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ songs }),
-      });
-      if (!addRes.ok) throw new Error(`HTTP ${addRes.status}`);
+      // 如果是网易云链接，从后端获取歌单数据
+      const isNetease = (result as unknown as { _neteaseId?: string })._neteaseId;
+      if (isNetease) {
+        const fetchRes = await fetch(apiUrl(`/api/playlist/${isNetease}`));
+        if (!fetchRes.ok) throw new Error('获取网易云歌单失败');
+        const data = await fetchRes.json();
+        const songs: SongInfo[] = (data.songs || []).map((s: Record<string, unknown>, i: number) => ({
+          id: `import_${Date.now()}_${i}`,
+          name: String(s.name || '未知歌曲'),
+          artist: String(s.artist || '未知歌手'),
+          album: String(s.album || '未知专辑'),
+          duration: Number(s.duration) || 0,
+          fee: Number(s.fee) || 0,
+          cover: s.cover ? String(s.cover) : null,
+          url: null,
+        }));
+        if (songs.length > 0) {
+          await fetch(apiUrl(`/api/playlists/${newPlaylist.id}/songs`), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ songs }),
+          });
+        }
+      } else if (result.songs.length > 0) {
+        // 本地解析的歌曲
+        await fetch(apiUrl(`/api/playlists/${newPlaylist.id}/songs`), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ songs: result.songs }),
+        });
+      }
 
       setShowImport(false);
       setImportText('');
       await fetchPlaylists();
       setSelectedPlaylistId(newPlaylist.id);
     } catch (err) {
-      setError('导入失败，请检查JSON格式');
+      setError(`导入失败: ${err instanceof Error ? err.message : '格式不支持'}`);
       setTimeout(() => setError(null), 3000);
     }
-  }, [importText, fetchPlaylists]);
+  }, [importText, fetchPlaylists, parseImportText]);
 
   // 切换展开/折叠
   const toggleExpand = useCallback((playlistId: string) => {
@@ -281,9 +382,9 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
               <textarea
                 value={importText}
                 onChange={e => setImportText(e.target.value)}
-                placeholder={'[\n  {"name":"歌名","artist":"歌手","album":"专辑"}\n]'}
+                placeholder={'支持格式:\n• 网易云歌单链接\n  music.163.com/#/playlist?id=xxx\n• JSON: [{"name":"歌名","artist":"歌手"}]\n• M3U: #EXTINF:0,歌手 - 歌名\n• CSV: 歌名,歌手,专辑'}
                 style={{
-                  width: '100%', height: 80, padding: '8px', borderRadius: 8,
+                  width: '100%', height: 100, padding: '8px', borderRadius: 8,
                   border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)',
                   color: text, fontSize: 10, outline: 'none', resize: 'none',
                 }}
