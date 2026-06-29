@@ -805,11 +805,22 @@ export default function App() {
               {/* 整个唱片（旋转） */}
               <div style={{
                 width: '100%', height: '100%', borderRadius: '50%',
-                background: 'transparent',
+                background: '#111',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 position: 'relative',
                 animation: isPlaying ? 'spin 20s linear infinite' : 'none',
+                boxShadow: '0 0 0 10px rgba(30,30,40,0.95)',
               }}>
+                {/* 黑胶纹路 */}
+                <div style={{
+                  position: 'absolute', width: '100%', height: '100%', borderRadius: '50%',
+                  background: `repeating-radial-gradient(circle at center,
+                    transparent 0px, transparent 6px,
+                    rgba(255,255,255,0.04) 6.5px, transparent 7px,
+                    transparent 13px, rgba(255,255,255,0.025) 13.5px, transparent 14px,
+                    transparent 20px, rgba(255,255,255,0.03) 20.5px, transparent 21px)`,
+                  pointerEvents: 'none',
+                }} />
                 {/* 封面图（居中圆形，占比约72%） */}
                 {current?.cover ? (
                   <img src={current.cover} alt={current.name} style={{
