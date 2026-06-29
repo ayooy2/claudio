@@ -763,24 +763,7 @@ export default function App() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 position: 'relative',
                 animation: isPlaying ? 'spin 20s linear infinite' : 'none',
-                transition: 'box-shadow 0.5s ease',
               }}>
-                {/* 纹理沟槽 */}
-                <div style={{
-                  position: 'absolute', width: '100%', height: '100%', borderRadius: '50%',
-                  background: `repeating-radial-gradient(circle at center,
-                    transparent 0px, transparent 4px,
-                    rgba(255,255,255,0.04) 4.5px, transparent 5px,
-                    transparent 9px, rgba(255,255,255,0.02) 9.5px, transparent 10px,
-                    transparent 14px, rgba(255,255,255,0.03) 14.5px, transparent 15px)`,
-                  pointerEvents: 'none',
-                }} />
-                {/* 高光反射 */}
-                <div style={{
-                  position: 'absolute', width: '100%', height: '100%', borderRadius: '50%',
-                  background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 40%, transparent 60%, rgba(255,255,255,0.03) 100%)',
-                  pointerEvents: 'none',
-                }} />
                 {/* 封面图（居中圆形，占比约72%） */}
                 {current?.cover ? (
                   <img src={current.cover} alt={current.name} style={{
