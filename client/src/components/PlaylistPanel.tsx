@@ -267,6 +267,18 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
       setDefaultSongs(songs);
     } else {
       setPlaylistSongs(prev => ({ ...prev, [selectedPlaylistId]: songs }));
+      // 保存到后端
+      try {
+        const songIds = songs.map(s => s.id);
+        await fetch(apiUrl(`/api/playlists/${selectedPlaylistId}/reorder`), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ songIds }),
+        });
+      } catch (err) {
+        setError('保存排序失败');
+        setTimeout(() => setError(null), 3000);
+      }
     }
 
     setDragIndex(null);
@@ -394,18 +406,20 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
           url: null,
         }));
         if (songs.length > 0) {
-          await fetch(apiUrl(`/api/playlists/${newPlaylist.id}/songs`), {
+          const addRes = await fetch(apiUrl(`/api/playlists/${newPlaylist.id}/songs`), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ songs }),
           });
+          if (!addRes.ok) throw new Error(`添加歌曲失败: ${addRes.status}`);
         }
       } else if (result.songs.length > 0) {
-        await fetch(apiUrl(`/api/playlists/${newPlaylist.id}/songs`), {
+        const addRes = await fetch(apiUrl(`/api/playlists/${newPlaylist.id}/songs`), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ songs: result.songs }),
         });
+        if (!addRes.ok) throw new Error(`添加歌曲失败: ${addRes.status}`);
       }
 
       setShowImport(false);

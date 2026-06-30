@@ -464,6 +464,16 @@ export function createApp() {
     res.json({ ok: true });
   });
 
+  // Reorder songs in a playlist
+  app.put('/api/playlists/:id/reorder', (req, res) => {
+    const { songIds } = req.body;
+    if (!Array.isArray(songIds)) return res.status(400).json({ error: 'songIds 必须是数组' });
+    const playlist = store.getPlaylist(req.params.id);
+    if (!playlist) return res.status(404).json({ error: '歌单不存在' });
+    const ok = store.reorderPlaylist(req.params.id, songIds);
+    res.json({ ok });
+  });
+
   // ===== SPA fallback =====
   app.get('*', (_req, res, next) => {
     if (_req.path.startsWith('/api')) return next();

@@ -62,6 +62,7 @@ export interface IStore {
   deletePlaylist(id: string): boolean;
   addSongsToPlaylist(playlistId: string, songs: PlaylistSong[]): boolean;
   removeSongFromPlaylist(playlistId: string, songId: string): boolean;
+  reorderPlaylist(playlistId: string, songIds: string[]): boolean;
 
   // Preferences
   getPref(key: string): string | null;

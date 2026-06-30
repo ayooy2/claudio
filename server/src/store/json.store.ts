@@ -180,6 +180,24 @@ export class JsonStore implements IStore {
     return true;
   }
 
+  reorderPlaylist(playlistId: string, songIds: string[]): boolean {
+    const playlist = this.data.playlists.find(p => p.id === playlistId);
+    if (!playlist) return false;
+    const songMap = new Map(playlist.songs.map(s => [s.id, s]));
+    const reordered: typeof playlist.songs = [];
+    for (const id of songIds) {
+      const song = songMap.get(id);
+      if (song) reordered.push(song);
+    }
+    // Add any songs not in songIds (safety net)
+    for (const song of playlist.songs) {
+      if (!songIds.includes(song.id)) reordered.push(song);
+    }
+    playlist.songs = reordered;
+    this.save();
+    return true;
+  }
+
   getPref(key: string): string | null {
     return this.data.prefs[key] ?? null;
   }
