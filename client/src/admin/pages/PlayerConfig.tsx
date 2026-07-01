@@ -45,6 +45,16 @@ export default function PlayerConfig() {
           ...prev,
           defaultVolume: prefs.volume ? Math.round(parseFloat(prefs.volume) * 100) : prev.defaultVolume,
           autoPlay: prefs.auto_play !== 'false',
+          siteName: prefs.site_name || prev.siteName,
+          showLyrics: prefs.show_lyrics !== 'false',
+          showQueue: prefs.show_queue !== 'false',
+          showLike: prefs.show_like !== 'false',
+          clockSize: prefs.clock_size ? Number(prefs.clock_size) : prev.clockSize,
+          clockColor: prefs.clock_color || prev.clockColor,
+          progressBarHeight: prefs.progress_bar_height ? Number(prefs.progress_bar_height) : prev.progressBarHeight,
+          progressBarColor: prefs.progress_bar_color || prev.progressBarColor,
+          buttonRadius: prefs.button_radius ? Number(prefs.button_radius) : prev.buttonRadius,
+          buttonOpacity: prefs.button_opacity ? Number(prefs.button_opacity) : prev.buttonOpacity,
         }));
       }
     }).catch(() => {});
@@ -61,17 +71,32 @@ export default function PlayerConfig() {
       const updates = [
         { key: 'volume', value: String(settings.defaultVolume / 100) },
         { key: 'auto_play', value: String(settings.autoPlay) },
+        { key: 'site_name', value: settings.siteName },
+        { key: 'show_lyrics', value: String(settings.showLyrics) },
+        { key: 'show_queue', value: String(settings.showQueue) },
+        { key: 'show_like', value: String(settings.showLike) },
+        { key: 'clock_size', value: String(settings.clockSize) },
+        { key: 'clock_color', value: settings.clockColor },
+        { key: 'progress_bar_height', value: String(settings.progressBarHeight) },
+        { key: 'progress_bar_color', value: settings.progressBarColor },
+        { key: 'button_radius', value: String(settings.buttonRadius) },
+        { key: 'button_opacity', value: String(settings.buttonOpacity) },
       ];
-      await Promise.all(updates.map(({ key, value }) =>
+      const results = await Promise.allSettled(updates.map(({ key, value }) =>
         fetch(apiUrl('/api/prefs'), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key, value }),
         })
       ));
-      setSaved(true);
-      setError(null);
-      setTimeout(() => setSaved(false), 2000);
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok)).length;
+      if (failed > 0) {
+        setError(`${failed} 项保存失败`);
+      } else {
+        setSaved(true);
+        setError(null);
+        setTimeout(() => setSaved(false), 2000);
+      }
     } catch (err) {
       setError(`保存失败: ${err instanceof Error ? err.message : String(err)}`);
     }

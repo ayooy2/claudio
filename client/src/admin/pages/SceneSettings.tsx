@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface Scene {
   id: string;
@@ -20,8 +20,20 @@ const DEFAULT_SCENES: Scene[] = [
 ];
 
 export default function SceneSettings() {
-  const [scenes, setScenes] = useState<Scene[]>(DEFAULT_SCENES);
+  const [scenes, setScenes] = useState<Scene[]>(() => {
+    try {
+      const saved = localStorage.getItem('claudio_scenes');
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
+    return DEFAULT_SCENES;
+  });
   const [editing, setEditing] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  // 自动保存
+  useEffect(() => {
+    localStorage.setItem('claudio_scenes', JSON.stringify(scenes));
+  }, [scenes]);
 
   const toggleScene = (id: string) => {
     setScenes(prev => prev.map(s => s.id === id ? { ...s, enabled: !s.enabled } : s));
@@ -29,6 +41,12 @@ export default function SceneSettings() {
 
   const updateScene = (id: string, updates: Partial<Scene>) => {
     setScenes(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+  };
+
+  const handleReset = () => {
+    setScenes(DEFAULT_SCENES);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   };
 
   return (
@@ -166,6 +184,15 @@ export default function SceneSettings() {
             )}
           </div>
         ))}
+      </div>
+
+      {/* Reset button */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
+        <button onClick={handleReset} style={{
+          padding: '10px 20px', borderRadius: 8,
+          border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)',
+          color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer',
+        }}>{saved ? '✓ 已重置' : '恢复默认'}</button>
       </div>
     </div>
   );

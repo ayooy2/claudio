@@ -19,19 +19,36 @@ export default function MusicLibrary() {
   const [filter, setFilter] = useState<'all' | 'favorites' | 'enabled'>('all');
   const [error, setError] = useState<string | null>(null);
 
+  // 从 localStorage 加载收藏/启用状态
+  const loadSongStates = (): Record<string, { isFavorite?: boolean; enabled?: boolean }> => {
+    try {
+      const saved = localStorage.getItem('claudio_song_states');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  };
+
+  const saveSongStates = (states: Record<string, { isFavorite?: boolean; enabled?: boolean }>) => {
+    localStorage.setItem('claudio_song_states', JSON.stringify(states));
+  };
+
   useEffect(() => {
     const ctrl = new AbortController();
+    const states = loadSongStates();
     fetch(apiUrl('/api/playlist'), { signal: ctrl.signal }).then(r => r.json()).then(data => {
-      setSongs(data.songs?.map((s: { name: string; artist: string; album?: string; duration?: number }, i: number) => ({
-        id: String(i),
-        name: s.name,
-        artist: s.artist,
-        album: s.album || '',
-        duration: s.duration || 0,
-        tags: [],
-        enabled: true,
-        isFavorite: false,
-      })) || []);
+      setSongs(data.songs?.map((s: { name: string; artist: string; album?: string; duration?: number }, i: number) => {
+        const id = String(i);
+        const state = states[id] || {};
+        return {
+          id,
+          name: s.name,
+          artist: s.artist,
+          album: s.album || '',
+          duration: s.duration || 0,
+          tags: [],
+          enabled: state.enabled !== false,
+          isFavorite: state.isFavorite === true,
+        };
+      }) || []);
     }).catch((err) => {
       if (err.name !== 'AbortError') setError(`加载音乐库失败: ${err.message}`);
     });
@@ -60,16 +77,36 @@ export default function MusicLibrary() {
   };
 
   const toggleFavorite = (id: string) => {
-    setSongs(prev => prev.map(s => s.id === id ? { ...s, isFavorite: !s.isFavorite } : s));
+    setSongs(prev => {
+      const updated = prev.map(s => s.id === id ? { ...s, isFavorite: !s.isFavorite } : s);
+      const states = loadSongStates();
+      const song = updated.find(s => s.id === id);
+      if (song) states[id] = { ...states[id], isFavorite: song.isFavorite };
+      saveSongStates(states);
+      return updated;
+    });
   };
 
   const toggleEnabled = (id: string) => {
-    setSongs(prev => prev.map(s => s.id === id ? { ...s, enabled: !s.enabled } : s));
+    setSongs(prev => {
+      const updated = prev.map(s => s.id === id ? { ...s, enabled: !s.enabled } : s);
+      const states = loadSongStates();
+      const song = updated.find(s => s.id === id);
+      if (song) states[id] = { ...states[id], enabled: song.enabled };
+      saveSongStates(states);
+      return updated;
+    });
   };
 
   const batchSetEnabled = (enabled: boolean) => {
     if (selected.size === 0) return;
-    setSongs(prev => prev.map(s => selected.has(s.id) ? { ...s, enabled } : s));
+    setSongs(prev => {
+      const updated = prev.map(s => selected.has(s.id) ? { ...s, enabled } : s);
+      const states = loadSongStates();
+      for (const id of selected) states[id] = { ...states[id], enabled };
+      saveSongStates(states);
+      return updated;
+    });
     setSelected(new Set());
   };
 

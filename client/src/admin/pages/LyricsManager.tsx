@@ -6,7 +6,6 @@ interface LyricLine {
 }
 
 export default function LyricsManager() {
-  const [selectedSong, setSelectedSong] = useState<string>('');
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
   const [editing, setEditing] = useState(false);
 
@@ -48,7 +47,21 @@ export default function LyricsManager() {
   };
 
   const handleSave = () => {
-    // Save lyrics to API
+    if (lyrics.length === 0) return;
+    // 导出为 LRC 文件
+    const lrcContent = lyrics.map(line => {
+      const min = Math.floor(line.time / 60);
+      const sec = Math.floor(line.time % 60);
+      const ms = Math.round((line.time % 1) * 100);
+      return `[${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}.${String(ms).padStart(2, '0')}]${line.text}`;
+    }).join('\n');
+    const blob = new Blob([lrcContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lyrics-${new Date().toISOString().slice(0, 10)}.lrc`;
+    a.click();
+    URL.revokeObjectURL(url);
     setEditing(false);
   };
 

@@ -33,6 +33,7 @@ export default function PlaylistManager() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newName.trim(), description: newDesc.trim() }),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const playlist = await res.json();
       if (playlist.id) {
         setPlaylists(prev => [...prev, playlist]);
@@ -47,7 +48,8 @@ export default function PlaylistManager() {
 
   const handleDelete = async (id: string) => {
     try {
-      await fetch(apiUrl(`/api/playlists/${id}`), { method: 'DELETE' });
+      const res = await fetch(apiUrl(`/api/playlists/${id}`), { method: 'DELETE' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setPlaylists(prev => prev.filter(p => p.id !== id));
     } catch (err) {
       setError(`删除歌单失败: ${err instanceof Error ? err.message : String(err)}`);

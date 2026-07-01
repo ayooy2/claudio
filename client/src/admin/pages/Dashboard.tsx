@@ -27,10 +27,18 @@ export default function Dashboard() {
   useEffect(() => {
     const ctrl = new AbortController();
 
-    fetch(apiUrl('/api/playlist'), { signal: ctrl.signal }).then(r => r.json()).then(data => {
+    // 检测 API 状态
+    fetch(apiUrl('/api/playlist'), { signal: ctrl.signal }).then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      setStats(prev => ({ ...prev, serverStatus: 'running', apiStatus: 'connected' }));
+      return r.json();
+    }).then(data => {
       setStats(prev => ({ ...prev, totalSongs: data.total || 0 }));
     }).catch((err) => {
-      if (err.name !== 'AbortError') setErrors(prev => [...prev, `加载歌曲数据失败: ${err.message}`]);
+      if (err.name !== 'AbortError') {
+        setStats(prev => ({ ...prev, serverStatus: 'error', apiStatus: 'disconnected' }));
+        setErrors(prev => [...prev, `加载歌曲数据失败: ${err.message}`]);
+      }
     });
 
     fetch(apiUrl('/api/playlists'), { signal: ctrl.signal }).then(r => r.json()).then(data => {
