@@ -7,7 +7,6 @@ interface Song {
   artist: string;
   album: string;
   duration: number;
-  tags: string[];
   enabled: boolean;
   isFavorite: boolean;
 }
@@ -19,34 +18,55 @@ export default function MusicLibrary() {
   const [filter, setFilter] = useState<'all' | 'favorites' | 'enabled'>('all');
   const [error, setError] = useState<string | null>(null);
 
-  // 从 localStorage 加载收藏/启用状态
-  const loadSongStates = (): Record<string, { isFavorite?: boolean; enabled?: boolean }> => {
+  // 从 localStorage 加载收藏（与 App.tsx 共享 claudio_favorites）
+  const loadFavorites = (): Set<string> => {
     try {
-      const saved = localStorage.getItem('claudio_song_states');
+      const saved = localStorage.getItem('claudio_favorites');
+      if (saved) {
+        const arr = JSON.parse(saved);
+        return new Set(arr.map((s: { id: string }) => s.id));
+      }
+    } catch { /* ignore */ }
+    return new Set();
+  };
+
+  const saveFavorites = (favorites: Set<string>) => {
+    try {
+      const saved = localStorage.getItem('claudio_favorites');
+      const arr: { id: string; name: string; artist: string; album: string }[] = saved ? JSON.parse(saved) : [];
+      // 更新收藏状态
+      const updated = songs.filter(s => favorites.has(s.id)).map(s => ({ id: s.id, name: s.name, artist: s.artist, album: s.album }));
+      localStorage.setItem('claudio_favorites', JSON.stringify(updated));
+    } catch { /* ignore */ }
+  };
+
+  // 从 localStorage 加载启用状态
+  const loadEnabledStates = (): Record<string, boolean> => {
+    try {
+      const saved = localStorage.getItem('claudio_song_enabled');
       return saved ? JSON.parse(saved) : {};
     } catch { return {}; }
   };
 
-  const saveSongStates = (states: Record<string, { isFavorite?: boolean; enabled?: boolean }>) => {
-    localStorage.setItem('claudio_song_states', JSON.stringify(states));
+  const saveEnabledStates = (states: Record<string, boolean>) => {
+    localStorage.setItem('claudio_song_enabled', JSON.stringify(states));
   };
 
   useEffect(() => {
     const ctrl = new AbortController();
-    const states = loadSongStates();
+    const favIds = loadFavorites();
+    const enabledStates = loadEnabledStates();
     fetch(apiUrl('/api/playlist'), { signal: ctrl.signal }).then(r => r.json()).then(data => {
       setSongs(data.songs?.map((s: { name: string; artist: string; album?: string; duration?: number }, i: number) => {
         const id = String(i);
-        const state = states[id] || {};
         return {
           id,
           name: s.name,
           artist: s.artist,
           album: s.album || '',
           duration: s.duration || 0,
-          tags: [],
-          enabled: state.enabled !== false,
-          isFavorite: state.isFavorite === true,
+          enabled: enabledStates[id] !== false,
+          isFavorite: favIds.has(id),
         };
       }) || []);
     }).catch((err) => {
@@ -79,10 +99,12 @@ export default function MusicLibrary() {
   const toggleFavorite = (id: string) => {
     setSongs(prev => {
       const updated = prev.map(s => s.id === id ? { ...s, isFavorite: !s.isFavorite } : s);
-      const states = loadSongStates();
-      const song = updated.find(s => s.id === id);
-      if (song) states[id] = { ...states[id], isFavorite: song.isFavorite };
-      saveSongStates(states);
+      const favIds = new Set(updated.filter(s => s.isFavorite).map(s => s.id));
+      // 保存到 claudio_favorites（与 App.tsx 共享）
+      try {
+        const favSongs = updated.filter(s => s.isFavorite).map(s => ({ id: s.id, name: s.name, artist: s.artist, album: s.album, duration: s.duration, fee: 0, url: null }));
+        localStorage.setItem('claudio_favorites', JSON.stringify(favSongs));
+      } catch { /* ignore */ }
       return updated;
     });
   };
@@ -90,10 +112,9 @@ export default function MusicLibrary() {
   const toggleEnabled = (id: string) => {
     setSongs(prev => {
       const updated = prev.map(s => s.id === id ? { ...s, enabled: !s.enabled } : s);
-      const states = loadSongStates();
-      const song = updated.find(s => s.id === id);
-      if (song) states[id] = { ...states[id], enabled: song.enabled };
-      saveSongStates(states);
+      const states: Record<string, boolean> = {};
+      updated.forEach(s => { states[s.id] = s.enabled; });
+      saveEnabledStates(states);
       return updated;
     });
   };
@@ -102,9 +123,9 @@ export default function MusicLibrary() {
     if (selected.size === 0) return;
     setSongs(prev => {
       const updated = prev.map(s => selected.has(s.id) ? { ...s, enabled } : s);
-      const states = loadSongStates();
-      for (const id of selected) states[id] = { ...states[id], enabled };
-      saveSongStates(states);
+      const states: Record<string, boolean> = {};
+      updated.forEach(s => { states[s.id] = s.enabled; });
+      saveEnabledStates(states);
       return updated;
     });
     setSelected(new Set());

@@ -638,6 +638,17 @@ export default function App() {
   const dragCleanupRef = useRef<(() => void) | null>(null);
   useEffect(() => () => { dragCleanupRef.current?.(); }, []);
 
+  // 读取后端 prefs 配置（PlayerConfig 保存的）
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetch(apiUrl('/api/prefs'), { signal: ctrl.signal }).then(r => r.json()).then(prefs => {
+      if (prefs && typeof prefs === 'object') {
+        if (prefs.volume) setVolume(parseFloat(prefs.volume));
+      }
+    }).catch(() => {});
+    return () => ctrl.abort();
+  }, []);
+
   // Like
   const toggleLike = useCallback(() => {
     if (!current) return;

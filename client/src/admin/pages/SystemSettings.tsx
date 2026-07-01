@@ -2,18 +2,12 @@ import { useState, useRef, useEffect } from 'react';
 import { apiUrl } from '../../lib/api.js';
 
 export default function SystemSettings() {
-  const [apiConfig, setApiConfig] = useState({
-    neteaseApi: localStorage.getItem('claudio_neteaseApi') || 'http://localhost:3000',
-    brainApi: localStorage.getItem('claudio_brainApi') || 'https://api.deepseek.com',
-    brainModel: localStorage.getItem('claudio_brainModel') || 'deepseek-chat',
-  });
-
   const [systemInfo, setSystemInfo] = useState({
     version: '2.0.0',
-    uptime: '-',
+    apiStatus: '检测中...',
     totalSongs: '-',
     totalPlaylists: '-',
-    apiStatus: '检测中...',
+    totalPlays: '-',
   });
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -23,7 +17,7 @@ export default function SystemSettings() {
   // 获取真实系统信息
   useEffect(() => {
     const ctrl = new AbortController();
-    // 检测 API 状态
+
     fetch(apiUrl('/api/playlist'), { signal: ctrl.signal }).then(r => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json();
@@ -37,6 +31,10 @@ export default function SystemSettings() {
       setSystemInfo(prev => ({ ...prev, totalPlaylists: String(Array.isArray(data) ? data.length : 0) }));
     }).catch(() => {});
 
+    fetch(apiUrl('/api/plays/recent?limit=1000'), { signal: ctrl.signal }).then(r => r.json()).then(data => {
+      setSystemInfo(prev => ({ ...prev, totalPlays: String(Array.isArray(data) ? data.length : 0) }));
+    }).catch(() => {});
+
     return () => ctrl.abort();
   }, []);
 
@@ -44,17 +42,6 @@ export default function SystemSettings() {
     setMessage({ type, text });
     if (msgTimerRef.current) clearTimeout(msgTimerRef.current);
     msgTimerRef.current = setTimeout(() => { setMessage(null); msgTimerRef.current = null; }, 3000);
-  };
-
-  const handleSaveApiConfig = () => {
-    try {
-      localStorage.setItem('claudio_neteaseApi', apiConfig.neteaseApi);
-      localStorage.setItem('claudio_brainApi', apiConfig.brainApi);
-      localStorage.setItem('claudio_brainModel', apiConfig.brainModel);
-      showTempMessage('success', 'API 配置已保存');
-    } catch {
-      showTempMessage('error', '保存失败');
-    }
   };
 
   const handleClearCache = () => {
@@ -95,39 +82,6 @@ export default function SystemSettings() {
         }}>{message.text}</div>
       )}
 
-      {/* API Configuration */}
-      <div style={{
-        background: 'rgba(0,0,0,0.3)', borderRadius: 12,
-        border: '1px solid rgba(255,255,255,0.06)', padding: '20px', marginBottom: 16,
-      }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.7)', marginBottom: 16 }}>API 配置</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {([
-            { key: 'neteaseApi' as const, label: '网易云音乐 API' },
-            { key: 'brainApi' as const, label: 'AI 模型 API' },
-            { key: 'brainModel' as const, label: 'AI 模型' },
-          ]).map(field => (
-            <div key={field.key}>
-              <label style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6, display: 'block' }}>{field.label}</label>
-              <input
-                type="text" value={apiConfig[field.key]}
-                onChange={e => setApiConfig(prev => ({ ...prev, [field.key]: e.target.value }))}
-                style={{
-                  width: '100%', padding: '10px 14px', borderRadius: 8,
-                  border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)',
-                  color: 'rgba(255,255,255,0.8)', fontSize: 13, outline: 'none',
-                }}
-              />
-            </div>
-          ))}
-          <button onClick={handleSaveApiConfig} style={{
-            padding: '10px 20px', borderRadius: 8, alignSelf: 'flex-end',
-            border: '1px solid rgba(51,255,102,0.2)', background: 'rgba(51,255,102,0.08)',
-            color: '#3f6', fontSize: 12, cursor: 'pointer',
-          }}>保存配置</button>
-        </div>
-      </div>
-
       {/* System Info */}
       <div style={{
         background: 'rgba(0,0,0,0.3)', borderRadius: 12,
@@ -140,6 +94,7 @@ export default function SystemSettings() {
             { label: 'API 状态', value: systemInfo.apiStatus },
             { label: '音乐总数', value: systemInfo.totalSongs },
             { label: '歌单数量', value: systemInfo.totalPlaylists },
+            { label: '播放记录', value: systemInfo.totalPlays },
           ]).map(item => (
             <div key={item.label} style={{
               padding: '12px', borderRadius: 8, background: 'rgba(255,255,255,0.02)',

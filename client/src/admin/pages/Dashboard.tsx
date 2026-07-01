@@ -19,7 +19,7 @@ interface RecentPlay {
 export default function Dashboard() {
   const [stats, setStats] = useState<Stats>({
     totalSongs: 0, totalPlaylists: 0, totalPlays: 0,
-    activeScenes: 6, serverStatus: 'running', apiStatus: 'connected'
+    activeScenes: 11, serverStatus: '检测中...', apiStatus: '检测中...'
   });
   const [recentPlays, setRecentPlays] = useState<RecentPlay[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
@@ -30,16 +30,26 @@ export default function Dashboard() {
     // 检测 API 状态
     fetch(apiUrl('/api/playlist'), { signal: ctrl.signal }).then(r => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      setStats(prev => ({ ...prev, serverStatus: 'running', apiStatus: 'connected' }));
+      setStats(prev => ({ ...prev, serverStatus: '运行中', apiStatus: '已连接' }));
       return r.json();
     }).then(data => {
       setStats(prev => ({ ...prev, totalSongs: data.total || 0 }));
     }).catch((err) => {
       if (err.name !== 'AbortError') {
-        setStats(prev => ({ ...prev, serverStatus: 'error', apiStatus: 'disconnected' }));
+        setStats(prev => ({ ...prev, serverStatus: '异常', apiStatus: '断开' }));
         setErrors(prev => [...prev, `加载歌曲数据失败: ${err.message}`]);
       }
     });
+
+    // 读取活跃场景数
+    try {
+      const saved = localStorage.getItem('claudio_scene_enabled');
+      if (saved) {
+        const enabledMap = JSON.parse(saved);
+        const count = Object.values(enabledMap).filter(v => v === true).length;
+        setStats(prev => ({ ...prev, activeScenes: count }));
+      }
+    } catch { /* ignore */ }
 
     fetch(apiUrl('/api/playlists'), { signal: ctrl.signal }).then(r => r.json()).then(data => {
       setStats(prev => ({ ...prev, totalPlaylists: Array.isArray(data) ? data.length : 0 }));

@@ -98,7 +98,7 @@ export default function LyricsManager() {
               padding: '6px 14px', borderRadius: 8,
               border: '1px solid rgba(51,255,102,0.2)', background: 'rgba(51,255,102,0.08)',
               color: '#3f6', fontSize: 12, cursor: 'pointer',
-            }}>保存</button>
+            }}>导出 LRC</button>
           </div>
 
           <div style={{ maxHeight: 400, overflow: 'auto' }}>
