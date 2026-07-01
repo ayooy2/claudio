@@ -298,6 +298,18 @@ export default function App() {
   const [showParticles, setShowParticles] = useState(() => loadState('claudio_show_particles', true, isBoolean));
   const [quality, setQuality] = useState(() => loadState('claudio_quality', 0, isNumber));
   const qualityRef = useRef(quality);
+  // 分屏布局：左侧封面、右侧歌词
+  const [splitRatio, setSplitRatio] = useState(() => loadState('claudio_split_ratio', 0.5, isNumber));
+  const splitRatioRef = useRef(splitRatio);
+  useEffect(() => { splitRatioRef.current = splitRatio; }, [splitRatio]);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const handler = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    setIsMobile(mq.matches);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   const { audioRef, current, isPlaying, isLoading, currentTime, duration, volume, volumeRef, isMuted,
     play, playRef, togglePlay, toggleMute, setVolume, seek, setCurrentTime, setDuration, setIsPlaying, playError, clearError } = usePlayer(qualityRef);
@@ -339,8 +351,9 @@ export default function App() {
       localStorage.setItem('claudio_quality', JSON.stringify(quality));
       localStorage.setItem('claudio_show_time', JSON.stringify(showTime));
       localStorage.setItem('claudio_show_particles', JSON.stringify(showParticles));
+      localStorage.setItem('claudio_split_ratio', JSON.stringify(splitRatio));
     } catch {}
-  }, [scene, coverMode, showCover, showTime, quality, showParticles]);
+  }, [scene, coverMode, showCover, showTime, quality, showParticles, splitRatio]);
 
   // Save queue to localStorage
   useEffect(() => {
@@ -680,6 +693,41 @@ export default function App() {
     touchStartRef.current = null;
   }, [handlePrev, handleNext]);
 
+  // 分割线拖拽
+  const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const root = document.getElementById('player-root');
+    if (!root) return;
+    const rect = root.getBoundingClientRect();
+    const onMove = (ev: MouseEvent) => {
+      const ratio = Math.max(0.25, Math.min(0.75, (ev.clientX - rect.left) / rect.width));
+      setSplitRatio(ratio);
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, []);
+
+  const handleDividerTouchStart = useCallback((e: React.TouchEvent) => {
+    const root = document.getElementById('player-root');
+    if (!root) return;
+    const rect = root.getBoundingClientRect();
+    const onMove = (ev: TouchEvent) => {
+      ev.preventDefault();
+      const ratio = Math.max(0.25, Math.min(0.75, (ev.touches[0].clientX - rect.left) / rect.width));
+      setSplitRatio(ratio);
+    };
+    const onEnd = () => {
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onEnd);
+    };
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onEnd);
+  }, []);
+
   const sc = SCENE_CONFIG[scene];
   const pct = duration > 0 ? (currentTime / duration) * 100 : 0;
   // 隐藏元素计数：用于三档自适应布局
@@ -738,7 +786,7 @@ export default function App() {
       {showParticles && <Particles scene={scene} />}
 
       {/* Header */}
-      <div style={{
+      <div className="mobile-header" style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         padding: '14px 20px', flexShrink: 0, zIndex: 10,
         background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(20px)',
@@ -783,188 +831,304 @@ export default function App() {
         </div>
       </div>
 
-      {/* Central Area: Clock + Cover */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 10, minHeight: 0, overflow: 'auto', padding: '0 16px' }}>
-        {/* Clock - 过渡动画 */}
-        <div style={{
-          maxHeight: showTime ? 120 : 0, opacity: showTime ? 1 : 0,
-          overflow: 'hidden', transition: 'max-height 0.5s cubic-bezier(0.4,0,0.2,1), opacity 0.4s ease',
-        }}>
-          <Clock textDim={sc.textDim} compact={!!current} />
-        </div>
+      {/* ===== Cover Sizing CSS ===== */}
+      <style>{`
+        .cover-vinyl { width: min(42vw, 35vh, 220px); aspect-ratio: 1; flex-shrink: 0; transition: all 0.4s ease; }
+        .cover-full { width: min(40vw, 32vh, 200px); aspect-ratio: 1; flex-shrink: 0; transition: all 0.4s ease; }
+        .cover-vinyl.playing { width: min(38vw, 30vh, 180px); }
+        .cover-full.playing { width: min(36vw, 28vh, 170px); }
+        .split-cover-vinyl { width: min(28vw, 30vh, 240px); aspect-ratio: 1; flex-shrink: 0; transition: all 0.4s ease; }
+        .split-cover-full { width: min(26vw, 28vh, 220px); aspect-ratio: 1; flex-shrink: 0; transition: all 0.4s ease; }
+        .split-cover-vinyl.playing { width: min(24vw, 26vh, 200px); }
+        .split-cover-full.playing { width: min(22vw, 24vh, 180px); }
+        @media (max-width: 480px) { .cover-vinyl { width: min(50vw, 32vh, 180px); } .cover-full { width: min(45vw, 28vh, 160px); } .cover-vinyl.playing { width: min(42vw, 26vh, 150px); } .cover-full.playing { width: min(40vw, 24vh, 140px); } }
+        :fullscreen .cover-vinyl { width: min(35vw, 40vh, 300px); }
+        :fullscreen .cover-full { width: min(35vw, 40vh, 300px); }
+        :fullscreen .cover-vinyl.playing { width: min(30vw, 35vh, 260px); }
+        :fullscreen .cover-full.playing { width: min(30vw, 35vh, 260px); }
+      `}</style>
 
-        {/* Album Cover */}
-        <div style={{
-          maxHeight: showCover ? 500 : 0, opacity: showCover ? 1 : 0,
-          overflow: 'hidden', transition: 'max-height 0.6s cubic-bezier(0.4,0,0.2,1), opacity 0.4s ease',
-          background: 'transparent',
-        }}>
-          <style>{`
-            .cover-vinyl { width: min(42vw, 35vh, 220px); aspect-ratio: 1; flex-shrink: 0; transition: all 0.4s ease; }
-            .cover-full { width: min(40vw, 32vh, 200px); aspect-ratio: 1; flex-shrink: 0; transition: all 0.4s ease; }
-            .cover-vinyl.playing { width: min(38vw, 30vh, 180px); }
-            .cover-full.playing { width: min(36vw, 28vh, 170px); }
-            @media (max-width: 480px) { .cover-vinyl { width: min(50vw, 32vh, 180px); } .cover-full { width: min(45vw, 28vh, 160px); } .cover-vinyl.playing { width: min(42vw, 26vh, 150px); } .cover-full.playing { width: min(40vw, 24vh, 140px); } }
-            :fullscreen .cover-vinyl { width: min(35vw, 40vh, 300px); }
-            :fullscreen .cover-full { width: min(35vw, 40vh, 300px); }
-            :fullscreen .cover-vinyl.playing { width: min(30vw, 35vh, 260px); }
-            :fullscreen .cover-full.playing { width: min(30vw, 35vh, 260px); }
-          `}</style>
-          {coverMode === 'vinyl' ? (
-            /* ===== 黑胶唱片 ===== */
-            <div className={`cover-vinyl${isPlaying ? ' playing' : ''}`} style={{ marginTop: 20, position: 'relative', background: 'transparent' }}>
-              {/* 整个唱片（旋转） */}
-              <div style={{
-                width: '100%', height: '100%', borderRadius: '50%',
-                background: '#111',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                position: 'relative',
-                animation: isPlaying ? 'spin 20s linear infinite' : 'none',
-                border: '2px solid rgba(30,30,40,0.95)',
-              }}>
-                {/* 黑胶纹路 */}
-                <div style={{
-                  position: 'absolute', width: '100%', height: '100%', borderRadius: '50%',
-                  background: `repeating-radial-gradient(circle at center,
-                    transparent 0px, transparent 6px,
-                    rgba(255,255,255,0.04) 6.5px, transparent 7px,
-                    transparent 13px, rgba(255,255,255,0.025) 13.5px, transparent 14px,
-                    transparent 20px, rgba(255,255,255,0.03) 20.5px, transparent 21px)`,
-                  pointerEvents: 'none',
-                }} />
-                {/* 封面图（居中圆形，占比约72%） */}
-                {current?.cover ? (
-                  <img src={current.cover} alt={current.name} style={{
-                    width: '72%', height: '72%', borderRadius: '50%', objectFit: 'cover',
-                    position: 'relative', zIndex: 1,
-                  }} />
-                ) : (
-                  <div style={{
-                    width: '72%', height: '72%', borderRadius: '50%',
-                    background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    position: 'relative', zIndex: 1,
-                  }}>
-                    <span style={{ fontSize: 'min(10vw, 48px)', opacity: 0.2 }}>🎵</span>
-                  </div>
-                )}
-                {/* 中心轴孔 */}
-                <div style={{
-                  position: 'absolute', width: 16, height: 16, borderRadius: '50%',
-                  background: '#1a1a2e', border: '2px solid rgba(255,255,255,0.15)',
-                  zIndex: 2,
-                }} />
-              </div>
-              {/* 播放指示器 */}
-              {isPlaying && <PlayIndicator accent={sc.accent} bottom={-4} right={-4} border={`1px solid ${sc.accent}30`} />}
-            </div>
-          ) : (
-            /* ===== 全屏封面 ===== */
-            <div className={`cover-full${isPlaying ? ' playing' : ''}`} style={{ marginTop: 20, position: 'relative', background: 'transparent' }}>
-              <div style={{
-                width: '100%', height: '100%', borderRadius: 20, overflow: 'hidden', position: 'relative',
-                boxShadow: isPlaying
-                  ? `0 8px 40px rgba(0,0,0,0.5), 0 0 60px ${sc.accent}15`
-                  : '0 4px 20px rgba(0,0,0,0.3)',
-                transition: 'box-shadow 0.5s ease',
-              }}>
-                {current?.cover ? (
-                  <img src={current.cover} alt={current.name} style={{
-                    width: '100%', height: '100%', objectFit: 'cover', display: 'block',
-                  }} />
-                ) : (
-                  <div style={{
-                    width: '100%', height: '100%', background: 'rgba(255,255,255,0.03)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <span style={{ fontSize: 'min(15vw, 80px)', opacity: 0.15 }}>🎵</span>
-                  </div>
-                )}
-                {/* 播放指示器 */}
-                {isPlaying && <PlayIndicator accent={sc.accent} bottom={12} right={12} />}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Now Playing Info — 三档自适应：都显示/少一个/都隐藏 */}
-        {current && (
+      {/* ===== Main Content Area ===== */}
+      {showLyrics && !isMobile ? (
+        /* ===== Split Layout: Left Cover + Right Lyrics ===== */
+        <div style={{ flex: 1, display: 'flex', zIndex: 10, minHeight: 0, overflow: 'hidden' }}>
+          {/* Left Panel: Cover + Info */}
           <div style={{
-            marginTop: [10, 14, 20][hc],
-            textAlign: 'center',
-            maxWidth: [260, 360, 480][hc],
-            transition: 'max-width 0.5s cubic-bezier(0.4,0,0.2,1), margin-top 0.5s ease',
+            width: `${splitRatio * 100}%`, display: 'flex', flexDirection: 'column',
+            justifyContent: 'center', alignItems: 'center', padding: '0 16px',
+            overflow: 'auto', minHeight: 0, transition: 'width 0.05s linear',
           }}>
+            {/* Clock */}
             <div style={{
-              fontSize: [14, 18, 24][hc],
-              fontWeight: 600, color: sc.text,
-              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              transition: 'font-size 0.5s cubic-bezier(0.4,0,0.2,1)',
+              maxHeight: showTime ? 120 : 0, opacity: showTime ? 1 : 0,
+              overflow: 'hidden', transition: 'max-height 0.5s cubic-bezier(0.4,0,0.2,1), opacity 0.4s ease',
             }}>
-              {current.name}
+              <Clock textDim={sc.textDim} compact={true} />
             </div>
+            {/* Album Cover */}
             <div style={{
-              fontSize: [11, 14, 17][hc],
-              color: sc.textDim, marginTop: [3, 4, 6][hc],
-              transition: 'font-size 0.5s cubic-bezier(0.4,0,0.2,1)',
-            }}>{current.artist}</div>
+              maxHeight: showCover ? 500 : 0, opacity: showCover ? 1 : 0,
+              overflow: 'hidden', transition: 'max-height 0.6s cubic-bezier(0.4,0,0.2,1), opacity 0.4s ease',
+              background: 'transparent',
+            }}>
+              {coverMode === 'vinyl' ? (
+                <div className={`split-cover-vinyl${isPlaying ? ' playing' : ''}`} style={{ marginTop: 16, position: 'relative', background: 'transparent' }}>
+                  <div style={{
+                    width: '100%', height: '100%', borderRadius: '50%', background: '#111',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
+                    animation: isPlaying ? 'spin 20s linear infinite' : 'none',
+                    border: '2px solid rgba(30,30,40,0.95)',
+                  }}>
+                    <div style={{
+                      position: 'absolute', width: '100%', height: '100%', borderRadius: '50%',
+                      background: `repeating-radial-gradient(circle at center, transparent 0px, transparent 6px, rgba(255,255,255,0.04) 6.5px, transparent 7px, transparent 13px, rgba(255,255,255,0.025) 13.5px, transparent 14px, transparent 20px, rgba(255,255,255,0.03) 20.5px, transparent 21px)`,
+                      pointerEvents: 'none',
+                    }} />
+                    {current?.cover ? (
+                      <img src={current.cover} alt={current.name} style={{ width: '72%', height: '72%', borderRadius: '50%', objectFit: 'cover', position: 'relative', zIndex: 1 }} />
+                    ) : (
+                      <div style={{ width: '72%', height: '72%', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
+                        <span style={{ fontSize: 'min(10vw, 48px)', opacity: 0.2 }}>🎵</span>
+                      </div>
+                    )}
+                    <div style={{ position: 'absolute', width: 16, height: 16, borderRadius: '50%', background: '#1a1a2e', border: '2px solid rgba(255,255,255,0.15)', zIndex: 2 }} />
+                  </div>
+                  {isPlaying && <PlayIndicator accent={sc.accent} bottom={-4} right={-4} border={`1px solid ${sc.accent}30`} />}
+                </div>
+              ) : (
+                <div className={`split-cover-full${isPlaying ? ' playing' : ''}`} style={{ marginTop: 16, position: 'relative', background: 'transparent' }}>
+                  <div style={{
+                    width: '100%', height: '100%', borderRadius: 20, overflow: 'hidden', position: 'relative',
+                    boxShadow: isPlaying ? `0 8px 40px rgba(0,0,0,0.5), 0 0 60px ${sc.accent}15` : '0 4px 20px rgba(0,0,0,0.3)',
+                    transition: 'box-shadow 0.5s ease',
+                  }}>
+                    {current?.cover ? (
+                      <img src={current.cover} alt={current.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    ) : (
+                      <div style={{ width: '100%', height: '100%', background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ fontSize: 'min(15vw, 80px)', opacity: 0.15 }}>🎵</span>
+                      </div>
+                    )}
+                    {isPlaying && <PlayIndicator accent={sc.accent} bottom={12} right={12} />}
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* Now Playing Info */}
+            {current && (
+              <div style={{ marginTop: 14, textAlign: 'center', maxWidth: 320 }}>
+                <div style={{ fontSize: 18, fontWeight: 600, color: sc.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{current.name}</div>
+                <div style={{ fontSize: 13, color: sc.textDim, marginTop: 4 }}>{current.artist}</div>
+              </div>
+            )}
+            {/* Audio Visualizer */}
+            {isPlaying && (
+              <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 24, marginTop: 14 }}>
+                {[0, 1, 2, 3, 4, 5, 6].map(i => (
+                  <div key={i} style={{ width: 3, borderRadius: 2, background: `linear-gradient(to top, ${sc.accent}60, ${sc.accent})`, animation: `viz-bar 0.8s ease-in-out ${i * 0.1}s infinite alternate`, height: 8 + (i % 3) * 4 }} />
+                ))}
+              </div>
+            )}
+            {!current && (
+              <div style={{ marginTop: 16, fontSize: 11, color: 'rgba(255,255,255,0.15)', letterSpacing: 2 }}>点击搜索开始播放</div>
+            )}
           </div>
-        )}
 
-        {/* Inline Lyrics Preview — 三档自适应 */}
-        {current && lyrics.length > 0 && currentLyricIndex >= 0 && (
-          <div style={{
-            marginTop: [10, 14, 18][hc],
-            textAlign: 'center',
-            maxWidth: [300, 420, 540][hc],
-            cursor: 'pointer',
-            transition: 'max-width 0.5s cubic-bezier(0.4,0,0.2,1)',
-          }}
-            onClick={() => setShowLyrics(true)}>
+          {/* Divider */}
+          <div className="split-divider"
+            onMouseDown={handleDividerMouseDown}
+            onTouchStart={handleDividerTouchStart}
+            onDoubleClick={() => setSplitRatio(0.5)}
+            style={{
+              width: 6, flexShrink: 0, cursor: 'col-resize', zIndex: 12,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              position: 'relative',
+            }}
+          >
             <div style={{
-              fontSize: [13, 17, 22][hc],
-              color: sc.accent, fontWeight: 500,
-              opacity: 0.8,
-              lineHeight: 1.6,
-              transition: 'font-size 0.5s cubic-bezier(0.4,0,0.2,1)',
-            }}>
-              {lyrics[currentLyricIndex]?.text || ''}
-            </div>
-            {currentLyricIndex + 1 < lyrics.length && (
-              <div style={{
-                fontSize: [11, 14, 17][hc],
-                color: sc.textDim, opacity: 0.5, marginTop: [3, 4, 6][hc],
-                transition: 'font-size 0.5s cubic-bezier(0.4,0,0.2,1)',
-              }}>
-                {lyrics[currentLyricIndex + 1]?.text || ''}
+              width: 1, height: '60%', borderRadius: 1,
+              background: 'rgba(255,255,255,0.08)',
+              transition: 'background 0.2s, height 0.2s',
+            }} />
+          </div>
+
+          {/* Right Panel: Lyrics */}
+          <div style={{
+            flex: 1, display: 'flex', flexDirection: 'column',
+            overflow: 'hidden', minHeight: 0, position: 'relative',
+          }}>
+            {lyrics.length > 0 ? (
+              <>
+                {/* Lyrics scroll area */}
+                <div ref={el => {
+                  if (el && currentLyricIndex >= 0) {
+                    const lyricDivs = el.querySelectorAll('[data-lyric]');
+                    const target = lyricDivs[currentLyricIndex] as HTMLElement;
+                    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }} style={{
+                  flex: 1, overflow: 'auto', padding: '16px 24px',
+                  maskImage: 'linear-gradient(transparent 0%, black 8%, black 92%, transparent 100%)',
+                  WebkitMaskImage: 'linear-gradient(transparent 0%, black 8%, black 92%, transparent 100%)',
+                }}>
+                  <div style={{ height: '10vh', flexShrink: 0 }} />
+                  {lyrics.map((line, i) => {
+                    const isCurrent = i === currentLyricIndex;
+                    const dist = Math.abs(i - currentLyricIndex);
+                    const isNear = dist <= 2;
+                    return (
+                      <div key={i} data-lyric onClick={() => {
+                        if (audioRef.current) { audioRef.current.currentTime = line.time; setCurrentTime(line.time); }
+                      }} style={{
+                        padding: isCurrent ? '14px 0' : '10px 0',
+                        fontSize: isCurrent ? 22 : isNear ? 16 : 14,
+                        lineHeight: 1.8,
+                        fontWeight: isCurrent ? 700 : isNear ? 400 : 300,
+                        color: isCurrent ? sc.text : isNear ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)',
+                        transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                        textAlign: 'center', cursor: 'pointer',
+                        transform: isCurrent ? 'scale(1.03)' : 'scale(1)',
+                        letterSpacing: isCurrent ? 1.5 : 0.5,
+                        textShadow: isCurrent ? `0 0 20px ${sc.accent}30` : 'none',
+                      }}>{line.text || '···'}</div>
+                    );
+                  })}
+                  <div style={{ height: '30vh', flexShrink: 0 }} />
+                </div>
+                {/* Mini progress at bottom of lyrics panel */}
+                <div style={{ padding: '8px 24px 4px', flexShrink: 0 }}>
+                  <div style={{ height: 2, background: 'rgba(255,255,255,0.08)', borderRadius: 1, cursor: 'pointer', position: 'relative' }}
+                    onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); handleSeek((e.clientX - r.left) / r.width); }}>
+                    <div style={{ width: `${pct}%`, height: '100%', background: sc.accent, borderRadius: 1, transition: 'width 0.3s linear' }} />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.15)', fontSize: 13 }}>
+                {current ? '暂无歌词' : '等待播放...'}
               </div>
             )}
           </div>
-        )}
-
-        {/* Audio Visualizer — 自适应间距 */}
-        {isPlaying && (
-          <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 24, marginTop: [12, 16, 20][hc], transition: 'margin-top 0.5s ease' }}>
-            {[0, 1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} style={{
-                width: 3, borderRadius: 2,
-                background: `linear-gradient(to top, ${sc.accent}60, ${sc.accent})`,
-                animation: `viz-bar 0.8s ease-in-out ${i * 0.1}s infinite alternate`,
-                height: 8 + (i % 3) * 4,
-              }} />
-            ))}
+        </div>
+      ) : (
+        /* ===== Default Vertical Layout ===== */
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 10, minHeight: 0, overflow: 'auto', padding: '0 16px' }}>
+          {/* Clock - 过渡动画 */}
+          <div style={{
+            maxHeight: showTime ? 120 : 0, opacity: showTime ? 1 : 0,
+            overflow: 'hidden', transition: 'max-height 0.5s cubic-bezier(0.4,0,0.2,1), opacity 0.4s ease',
+          }}>
+            <Clock textDim={sc.textDim} compact={!!current} />
           </div>
-        )}
 
-        {/* Placeholder when no song */}
-        {!current && (
-          <div style={{ marginTop: 16, fontSize: 11, color: 'rgba(255,255,255,0.15)', letterSpacing: 2 }}>
-            点击搜索开始播放
+          {/* Album Cover */}
+          <div style={{
+            maxHeight: showCover ? 500 : 0, opacity: showCover ? 1 : 0,
+            overflow: 'hidden', transition: 'max-height 0.6s cubic-bezier(0.4,0,0.2,1), opacity 0.4s ease',
+            background: 'transparent',
+          }}>
+            {coverMode === 'vinyl' ? (
+              <div className={`cover-vinyl${isPlaying ? ' playing' : ''}`} style={{ marginTop: 20, position: 'relative', background: 'transparent' }}>
+                <div style={{
+                  width: '100%', height: '100%', borderRadius: '50%', background: '#111',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
+                  animation: isPlaying ? 'spin 20s linear infinite' : 'none',
+                  border: '2px solid rgba(30,30,40,0.95)',
+                }}>
+                  <div style={{
+                    position: 'absolute', width: '100%', height: '100%', borderRadius: '50%',
+                    background: `repeating-radial-gradient(circle at center, transparent 0px, transparent 6px, rgba(255,255,255,0.04) 6.5px, transparent 7px, transparent 13px, rgba(255,255,255,0.025) 13.5px, transparent 14px, transparent 20px, rgba(255,255,255,0.03) 20.5px, transparent 21px)`,
+                    pointerEvents: 'none',
+                  }} />
+                  {current?.cover ? (
+                    <img src={current.cover} alt={current.name} style={{ width: '72%', height: '72%', borderRadius: '50%', objectFit: 'cover', position: 'relative', zIndex: 1 }} />
+                  ) : (
+                    <div style={{ width: '72%', height: '72%', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
+                      <span style={{ fontSize: 'min(10vw, 48px)', opacity: 0.2 }}>🎵</span>
+                    </div>
+                  )}
+                  <div style={{ position: 'absolute', width: 16, height: 16, borderRadius: '50%', background: '#1a1a2e', border: '2px solid rgba(255,255,255,0.15)', zIndex: 2 }} />
+                </div>
+                {isPlaying && <PlayIndicator accent={sc.accent} bottom={-4} right={-4} border={`1px solid ${sc.accent}30`} />}
+              </div>
+            ) : (
+              <div className={`cover-full${isPlaying ? ' playing' : ''}`} style={{ marginTop: 20, position: 'relative', background: 'transparent' }}>
+                <div style={{
+                  width: '100%', height: '100%', borderRadius: 20, overflow: 'hidden', position: 'relative',
+                  boxShadow: isPlaying ? `0 8px 40px rgba(0,0,0,0.5), 0 0 60px ${sc.accent}15` : '0 4px 20px rgba(0,0,0,0.3)',
+                  transition: 'box-shadow 0.5s ease',
+                }}>
+                  {current?.cover ? (
+                    <img src={current.cover} alt={current.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontSize: 'min(15vw, 80px)', opacity: 0.15 }}>🎵</span>
+                    </div>
+                  )}
+                  {isPlaying && <PlayIndicator accent={sc.accent} bottom={12} right={12} />}
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+
+          {/* Now Playing Info — 三档自适应：都显示/少一个/都隐藏 */}
+          {current && (
+            <div style={{
+              marginTop: [10, 14, 20][hc], textAlign: 'center',
+              maxWidth: [260, 360, 480][hc],
+              transition: 'max-width 0.5s cubic-bezier(0.4,0,0.2,1), margin-top 0.5s ease',
+            }}>
+              <div style={{
+                fontSize: [14, 18, 24][hc], fontWeight: 600, color: sc.text,
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                transition: 'font-size 0.5s cubic-bezier(0.4,0,0.2,1)',
+              }}>{current.name}</div>
+              <div style={{
+                fontSize: [11, 14, 17][hc], color: sc.textDim, marginTop: [3, 4, 6][hc],
+                transition: 'font-size 0.5s cubic-bezier(0.4,0,0.2,1)',
+              }}>{current.artist}</div>
+            </div>
+          )}
+
+          {/* Inline Lyrics Preview — 三档自适应 */}
+          {current && lyrics.length > 0 && currentLyricIndex >= 0 && (
+            <div style={{
+              marginTop: [10, 14, 18][hc], textAlign: 'center',
+              maxWidth: [300, 420, 540][hc], cursor: 'pointer',
+              transition: 'max-width 0.5s cubic-bezier(0.4,0,0.2,1)',
+            }} onClick={() => setShowLyrics(true)}>
+              <div style={{
+                fontSize: [13, 17, 22][hc], color: sc.accent, fontWeight: 500,
+                opacity: 0.8, lineHeight: 1.6,
+                transition: 'font-size 0.5s cubic-bezier(0.4,0,0.2,1)',
+              }}>{lyrics[currentLyricIndex]?.text || ''}</div>
+              {currentLyricIndex + 1 < lyrics.length && (
+                <div style={{
+                  fontSize: [11, 14, 17][hc], color: sc.textDim, opacity: 0.5, marginTop: [3, 4, 6][hc],
+                  transition: 'font-size 0.5s cubic-bezier(0.4,0,0.2,1)',
+                }}>{lyrics[currentLyricIndex + 1]?.text || ''}</div>
+              )}
+            </div>
+          )}
+
+          {/* Audio Visualizer — 自适应间距 */}
+          {isPlaying && (
+            <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 24, marginTop: [12, 16, 20][hc], transition: 'margin-top 0.5s ease' }}>
+              {[0, 1, 2, 3, 4, 5, 6].map(i => (
+                <div key={i} style={{ width: 3, borderRadius: 2, background: `linear-gradient(to top, ${sc.accent}60, ${sc.accent})`, animation: `viz-bar 0.8s ease-in-out ${i * 0.1}s infinite alternate`, height: 8 + (i % 3) * 4 }} />
+              ))}
+            </div>
+          )}
+
+          {/* Placeholder when no song */}
+          {!current && (
+            <div style={{ marginTop: 16, fontSize: 11, color: 'rgba(255,255,255,0.15)', letterSpacing: 2 }}>点击搜索开始播放</div>
+          )}
+        </div>
+      )}
 
       {/* Controls + Progress - Three Column Layout */}
-      <div style={{ padding: '0 16px 12px', flexShrink: 0, zIndex: 10 }}>
+      <div className="mobile-controls" style={{ padding: '0 16px 12px', flexShrink: 0, zIndex: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
           {/* Left: Queue + Transport Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1108,8 +1272,8 @@ export default function App() {
         currentSong={current}
         accent={sc.accent} text={sc.text} textDim={sc.textDim} />
 
-      {/* Lyrics Panel - 沉浸式歌词 */}
-      {showLyrics && (
+      {/* Lyrics Panel - 沉浸式歌词 (mobile only) */}
+      {showLyrics && isMobile && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 55,
           background: 'rgba(0,0,0,0.55)',
@@ -1282,7 +1446,7 @@ export default function App() {
             position: 'fixed', inset: 0, zIndex: 49,
             background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)',
           }} />
-          <div style={{
+          <div className="mobile-settings" style={{
             position: 'fixed', top: 56, right: 16, zIndex: 50,
             background: 'rgba(15,15,25,0.9)', backdropFilter: 'blur(40px)',
             borderRadius: 20, padding: '20px', width: 280,
@@ -1483,6 +1647,20 @@ export default function App() {
         .queue-drawer::-webkit-scrollbar-track { background: transparent; }
         .queue-drawer::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
         .queue-drawer::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+        /* Divider hover */
+        .split-divider:hover > div { background: rgba(255,255,255,0.2) !important; height: 80% !important; }
+        .split-divider:active > div { background: rgba(255,255,255,0.3) !important; }
+
+        /* Mobile improvements */
+        @media (max-width: 767px) {
+          .mobile-header { padding: 10px 14px !important; }
+          .mobile-header button { padding: 6px 12px !important; font-size: 12px !important; }
+          .mobile-controls { padding: 0 10px 8px !important; }
+          .mobile-controls button { min-width: 44px; min-height: 44px; }
+          .mobile-lyrics-line { font-size: 18px !important; padding: 12px 0 !important; }
+          .mobile-settings { width: calc(100vw - 32px) !important; right: 16px !important; max-height: 80vh; overflow-y: auto; }
+        }
 
         /* Particle animations */
         @keyframes twinkle {
