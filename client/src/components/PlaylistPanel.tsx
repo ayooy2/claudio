@@ -34,7 +34,6 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState('');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
-  const [expandedPlaylists, setExpandedPlaylists] = useState<Set<string>>(new Set(['default']));
   const fetchedPlaylistIds = useRef<Set<string>>(new Set());
 
   // 批量选择
@@ -441,16 +440,6 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
       setTimeout(() => setError(null), 3000);
     }
   }, [importText, fetchPlaylists, parseImportText]);
-
-  // 切换展开/折叠
-  const toggleExpand = useCallback((playlistId: string) => {
-    setExpandedPlaylists(prev => {
-      const next = new Set(prev);
-      if (next.has(playlistId)) next.delete(playlistId);
-      else next.add(playlistId);
-      return next;
-    });
-  }, []);
 
   // 点击空白处关闭
   const handleBackdropClick = useCallback((e: React.MouseEvent) => {
