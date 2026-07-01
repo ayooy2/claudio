@@ -174,16 +174,24 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
     if (!confirm(`确定要移除选中的 ${selectedSongs.size} 首歌曲吗？`)) return;
     try {
       const ids = Array.from(selectedSongs);
-      await Promise.all(ids.map(id =>
+      const results = await Promise.allSettled(ids.map(id =>
         fetch(apiUrl(`/api/playlists/${selectedPlaylistId}/songs/${id}`), { method: 'DELETE' })
       ));
-      setPlaylistSongs(prev => ({
-        ...prev,
-        [selectedPlaylistId]: (prev[selectedPlaylistId] || []).filter(s => !selectedSongs.has(s.id)),
-      }));
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok)).length;
+      if (failed > 0) setError(`${failed} 首歌曲移除失败`);
+      else setError(null);
       setSelectedSongs(new Set());
       setSelectMode(false);
+      // 刷新以确保数据一致
+      fetchedPlaylistIds.current.delete(selectedPlaylistId);
       await fetchPlaylists();
+      if (selectedPlaylistId !== 'default') {
+        const res = await fetch(apiUrl(`/api/playlists/${selectedPlaylistId}/songs`));
+        if (res.ok) {
+          const data = await res.json();
+          setPlaylistSongs(prev => ({ ...prev, [selectedPlaylistId]: data.songs || [] }));
+        }
+      }
     } catch (err) {
       setError('批量删除失败');
       setTimeout(() => setError(null), 3000);
@@ -195,27 +203,28 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
     if (selectedPlaylistId === 'default' || selectedSongs.size === 0) return;
     try {
       const songsToMove = currentSongs.filter(s => selectedSongs.has(s.id));
-      const res = await fetch(apiUrl(`/api/playlists/${targetPlaylistId}/songs`), {
+      // 1. 先添加到目标歌单
+      const addRes = await fetch(apiUrl(`/api/playlists/${targetPlaylistId}/songs`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ songs: songsToMove }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      // 从当前歌单移除
-      await Promise.all(songsToMove.map(s =>
+      if (!addRes.ok) throw new Error(`添加失败: ${addRes.status}`);
+      // 2. 从源歌单移除
+      const results = await Promise.allSettled(songsToMove.map(s =>
         fetch(apiUrl(`/api/playlists/${selectedPlaylistId}/songs/${s.id}`), { method: 'DELETE' })
       ));
-      setPlaylistSongs(prev => ({
-        ...prev,
-        [selectedPlaylistId]: (prev[selectedPlaylistId] || []).filter(s => !selectedSongs.has(s.id)),
-      }));
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok)).length;
+      if (failed > 0) setError(`${failed} 首歌曲从源歌单移除失败`);
       setSelectedSongs(new Set());
       setSelectMode(false);
       setShowMoveTo(false);
+      // 刷新两个歌单
+      fetchedPlaylistIds.current.delete(selectedPlaylistId);
       fetchedPlaylistIds.current.delete(targetPlaylistId);
       await fetchPlaylists();
     } catch (err) {
-      setError('移动歌曲失败');
+      setError(`移动歌曲失败: ${err instanceof Error ? err.message : ''}`);
       setTimeout(() => setError(null), 3000);
     }
   }, [selectedPlaylistId, selectedSongs, currentSongs, fetchPlaylists]);
@@ -252,38 +261,39 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
 
   // 拖拽放下 - 重排序
   const handleDrop = useCallback(async (dropIndex: number) => {
-    if (dragIndex === null || dragIndex === dropIndex) {
+    if (dragIndex === null || dragIndex === dropIndex || selectedPlaylistId === 'default') {
       setDragIndex(null);
       setDragOverIndex(null);
       return;
     }
 
-    const songs = [...currentSongs];
-    const [moved] = songs.splice(dragIndex, 1);
-    songs.splice(dropIndex, 0, moved);
+    // 将 sortedSongs 索引转换为 currentSongs 索引（处理降序模式）
+    const len = currentSongs.length;
+    const realDrag = sortDir === 'desc' ? len - 1 - dragIndex : dragIndex;
+    const realDrop = sortDir === 'desc' ? len - 1 - dropIndex : dropIndex;
 
-    // 更新本地状态
-    if (selectedPlaylistId === 'default') {
-      setDefaultSongs(songs);
-    } else {
-      setPlaylistSongs(prev => ({ ...prev, [selectedPlaylistId]: songs }));
-      // 保存到后端
-      try {
-        const songIds = songs.map(s => s.id);
-        await fetch(apiUrl(`/api/playlists/${selectedPlaylistId}/reorder`), {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ songIds }),
-        });
-      } catch (err) {
-        setError('保存排序失败');
-        setTimeout(() => setError(null), 3000);
-      }
+    const songs = [...currentSongs];
+    const [moved] = songs.splice(realDrag, 1);
+    songs.splice(realDrop, 0, moved);
+
+    setPlaylistSongs(prev => ({ ...prev, [selectedPlaylistId]: songs }));
+
+    // 保存到后端
+    try {
+      const songIds = songs.map(s => s.id);
+      await fetch(apiUrl(`/api/playlists/${selectedPlaylistId}/reorder`), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ songIds }),
+      });
+    } catch (err) {
+      setError('保存排序失败');
+      setTimeout(() => setError(null), 3000);
     }
 
     setDragIndex(null);
     setDragOverIndex(null);
-  }, [dragIndex, currentSongs, selectedPlaylistId]);
+  }, [dragIndex, currentSongs, selectedPlaylistId, sortDir]);
 
   // 拖拽结束
   const handleDragEnd = useCallback(() => {
