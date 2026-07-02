@@ -14,7 +14,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: NETEASE_API_BASE
-        sync: false
+        value: https://claudio-netease.onrender.com
       - key: NETEASE_COOKIE
         sync: false
       - key: BRAIN_API_URL

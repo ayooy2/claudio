@@ -119,8 +119,50 @@ const MOCK_SONGS: SongInfo[] = [
 
 const MOCK_AUDIO_BASE = 'https://music.163.com/song/media/outer/url?id=';
 
+// Render 免费版冷启动需 30-60 秒，超时设为 45 秒
+const API_TIMEOUT = 45_000;
+
 // ====== MusicService ======
 export class MusicService {
+
+  /**
+   * 带超时和重试的网易云API请求封装
+   * 自动检测连接拒绝、超时等常见问题并给出明确日志
+   */
+  private async neteaseFetch(path: string, params: Record<string, string> = {}, retries = 2): Promise<Response> {
+    const url = new URL(path, config.netease.apiBase);
+    for (const [k, v] of Object.entries(params)) {
+      if (v) url.searchParams.set(k, v);
+    }
+    if (config.netease.cookie) url.searchParams.set('cookie', config.netease.cookie);
+
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        const res = await fetch(url.toString(), { signal: AbortSignal.timeout(API_TIMEOUT) });
+        return res;
+      } catch (e: unknown) {
+        lastErr = e;
+        const msg = e instanceof Error ? e.message : String(e);
+        // ECONNREFUSED = 网易云API服务未启动
+        if (msg.includes('ECONNREFUSED') || msg.includes('fetch failed')) {
+          log.error(`网易云API连接失败 (${config.netease.apiBase})，服务可能未启动。请检查 NETEASE_API_BASE 配置。`);
+          throw new Error(`网易云API不可达: ${config.netease.apiBase}，请确认服务已启动`);
+        }
+        if (msg.includes('TimeoutError') || msg.includes('timeout') || msg.includes('abort')) {
+          log.warn(`网易云API请求超时 (attempt ${attempt + 1}/${retries})，可能正在冷启动...`);
+          if (attempt < retries - 1) {
+            await new Promise(r => setTimeout(r, 3000));
+            continue;
+          }
+          throw new Error('网易云API请求超时，服务可能正在冷启动（约需30-60秒），请稍后重试');
+        }
+        // 其他错误直接抛出
+        throw e;
+      }
+    }
+    throw lastErr;
+  }
   async search(keyword: string, limit = 10): Promise<SearchResult> {
     if (config.mock.music) {
       const kw = keyword.toLowerCase();
@@ -144,12 +186,10 @@ export class MusicService {
     await searchLimiter.wait(SEARCH_INTERVAL);
 
     try {
-      const url = new URL('/cloudsearch', config.netease.apiBase);
-      url.searchParams.set('keywords', keyword);
-      url.searchParams.set('limit', String(Math.max(limit, 20))); // fetch at least 20 for sorting
-      if (config.netease.cookie) url.searchParams.set('cookie', config.netease.cookie);
-
-      const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10_000) });
+      const res = await this.neteaseFetch('/cloudsearch', {
+        keywords: keyword,
+        limit: String(Math.max(limit, 20)),
+      });
       const data = await res.json() as { result?: { songs?: unknown[] } };
       const allSongs: SongInfo[] = ((data.result?.songs ?? []) as unknown[])
         .map((s: unknown) => {
@@ -227,12 +267,10 @@ export class MusicService {
     await urlLimiter.wait(URL_INTERVAL);
 
     try {
-      const url = new URL('/song/url', config.netease.apiBase);
-      url.searchParams.set('id', songId);
-      if (br) url.searchParams.set('br', String(br));
-      if (config.netease.cookie) url.searchParams.set('cookie', config.netease.cookie);
-
-      const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10_000) });
+      const res = await this.neteaseFetch('/song/url', {
+        id: songId,
+        ...(br ? { br: String(br) } : {}),
+      });
       const data = await res.json() as { data?: { url?: string | null; br?: number; freeTrialInfo?: unknown }[] };
       const song = data.data?.[0];
       const result: UrlResult & { isTrial: boolean } = {
@@ -283,11 +321,7 @@ export class MusicService {
     await searchLimiter.wait(SEARCH_INTERVAL);
 
     try {
-      const rUrl = new URL('/recommend/songs', config.netease.apiBase);
-      rUrl.searchParams.set('id', songId);
-      if (config.netease.cookie) rUrl.searchParams.set('cookie', config.netease.cookie);
-
-      const res = await fetch(rUrl.toString(), { signal: AbortSignal.timeout(15_000) });
+      const res = await this.neteaseFetch('/recommend/songs', { id: songId });
       const data = await res.json() as { data?: { dailySongs?: unknown[] } };
       const songs: SongInfo[] = ((data.data?.dailySongs ?? []) as unknown[]).map((s: unknown) => {
         const song = s as Record<string, unknown>;
@@ -320,12 +354,7 @@ export class MusicService {
     await searchLimiter.wait(SEARCH_INTERVAL);
 
     try {
-      const url = new URL('/comment/music', config.netease.apiBase);
-      url.searchParams.set('id', songId);
-      url.searchParams.set('limit', '1');
-      if (config.netease.cookie) url.searchParams.set('cookie', config.netease.cookie);
-
-      const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10_000) });
+      const res = await this.neteaseFetch('/comment/music', { id: songId, limit: '1' });
       const data = await res.json() as {
         data?: { hotComments?: unknown[]; comments?: unknown[] };
         hotComments?: unknown[];

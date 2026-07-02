@@ -254,7 +254,7 @@ export function createApp() {
       const lyricUrl = new URL('/lyric', config.netease.apiBase);
       lyricUrl.searchParams.set('id', songId);
       if (config.netease.cookie) lyricUrl.searchParams.set('cookie', config.netease.cookie);
-      const lyricRes = await fetch(lyricUrl.toString(), { signal: AbortSignal.timeout(10_000) });
+      const lyricRes = await fetch(lyricUrl.toString(), { signal: AbortSignal.timeout(45_000) });
       const lyricData = await lyricRes.json() as { lrc?: { lyric?: string } };
       const rawLyric = lyricData.lrc?.lyric || '';
       if (!rawLyric) return res.json({ lyrics: [] });
