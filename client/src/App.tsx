@@ -312,7 +312,7 @@ export default function App() {
   }, []);
 
   const { audioRef, current, isPlaying, isLoading, currentTime, duration, volume, volumeRef, isMuted,
-    play, playRef, togglePlay, toggleMute, setVolume, seek, setCurrentTime, setDuration, setIsPlaying, playError, clearError } = usePlayer(qualityRef);
+    play, playRef, togglePlay, toggleMute, setVolume, seek, setCurrentTime, setDuration, setIsPlaying, playError, setPlayError, clearError } = usePlayer(qualityRef);
   const { socket } = useSocket();
   const [socketMsg, setSocketMsg] = useState<string | null>(null);
   const socketMsgTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -492,8 +492,14 @@ export default function App() {
     el.onplay = () => setIsPlaying(true);
     el.onpause = () => setIsPlaying(false);
     el.onerror = () => {
-      console.warn('Audio error:', el.error);
+      const err = el.error;
+      console.warn('Audio error:', err);
       setIsPlaying(false);
+      // MEDIA_ERR_ABORTED (1) 不算错误（切换歌曲时自动触发）
+      if (err && err.code !== MediaError.MEDIA_ERR_ABORTED) {
+        const errMsg = ['', '用户中止', '网络错误', '解码错误', '格式不支持'][err.code] || '未知错误';
+        setPlayError(`播放出错: ${errMsg} (code=${err.code})`);
+      }
     };
     // onended uses refs for latest state (single coordination path)
     el.onended = () => {
@@ -504,6 +510,7 @@ export default function App() {
         setQueueIdx(n);
         setCurrentTime(0);
         play(q[n]).catch(e => {
+          // play() 内部已设置 playError，此处仅确保 isPlaying 状态正确
           console.warn('自动播放下一首失败:', e instanceof Error ? e.message : e);
           setIsPlaying(false);
         });

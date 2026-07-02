@@ -216,9 +216,22 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
   // Use functional update to avoid stale isPlaying closure
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio || !audio.src) return;
+    if (!audio) return;
+    if (!audio.src) {
+      setPlayError('没有可播放的歌曲');
+      return;
+    }
     if (audio.paused) {
-      ensureAudioReady().then(() => audio.play()).then(() => setIsPlaying(true)).catch(() => {});
+      ensureAudioReady().then(() => audio.play()).then(() => {
+        setIsPlaying(true);
+        setPlayError(null);
+      }).catch((e: unknown) => {
+        const msg = e instanceof Error ? e.message : '播放失败';
+        // AbortError 不算错误（新播放中断旧播放）
+        if (e instanceof Error && e.name === 'AbortError') return;
+        setPlayError(msg);
+        setIsPlaying(false);
+      });
     } else {
       audio.pause();
       setIsPlaying(false);
@@ -263,6 +276,6 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
     audioRef, current, setCurrent, isPlaying, setIsPlaying, isLoading,
     currentTime, setCurrentTime, duration, setDuration,
     volume, volumeRef, isMuted, play, playRef, togglePlay, setVolume, toggleMute, seek,
-    playError, clearError: () => setPlayError(null),
+    playError, setPlayError, clearError: () => setPlayError(null),
   };
 }
