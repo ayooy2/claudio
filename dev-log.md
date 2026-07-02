@@ -2,6 +2,17 @@
 
 ## 2026-06-26
 
+### fix: 播放链路全面修复 — 网易云API配置+超时+错误处理
+- **根因**: `render.yaml` 中 `NETEASE_API_BASE` 未设默认值，部署后指向 `localhost:3000`（不存在）
+- **根因**: 音乐服务超时仅10秒，Render免费版冷启动需30-60秒
+- **根因**: `ECONNREFUSED` 等连接失败无明确错误提示
+- **修复**:
+  - `render.yaml`: `NETEASE_API_BASE` 设为 `https://claudio-netease.onrender.com`
+  - `music.service.ts`: 新增 `neteaseFetch()` 封装，45秒超时+2次重试+ECONNREFUSED检测
+  - `app.ts`: 歌词接口超时从10s增至45s
+  - `index.ts`: 启动健康检查超时从5s增至45s，日志更明确（✅/❌标识）
+- **涉及文件**: `render.yaml`, `server/src/app.ts`, `server/src/index.ts`, `server/src/modules/music/music.service.ts`
+
 ### feat: 左右分屏布局 + 移动端适配
 - 新增分屏布局：桌面端点击歌词按钮后，左侧封面+右侧歌词
 - 可拖拽分割线：鼠标/触屏拖拽调整左右比例（25%~75%），双击重置50/50
