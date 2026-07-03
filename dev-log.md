@@ -22,6 +22,26 @@
 - **移动端**: 错误toast `bottom:70px`（避免与控制栏重叠），`max-width:90vw`，`word-break:break-word`
 - **涉及文件**: `client/src/components/SearchPanel.tsx`, `client/src/hooks/usePlayer.ts`, `client/src/App.tsx`
 
+### feat: 移动端全面适配
+- **PlaylistPanel**:
+  - 宽度从固定500px → 移动端100vw，解决溢出问题
+  - 双栏布局 → 移动端tab切换（歌单列表/歌曲列表）
+  - 按钮触控目标从18-28px → 36-44px（pl-btn/pl-btn-sm CSS类）
+  - 禁用移动端HTML5拖拽（触屏不支持）
+  - 歌曲行padding增大，提升可点击性
+- **App.tsx 控制栏**:
+  - 所有功能按钮移动端44-52px（Queue/Like/Lyrics/Mode/Volume）
+  - Prev/Next 44px, Play 52px
+  - 进度条触控区从4px → 20px（移动端），支持touch拖拽
+  - 音量：移动端点击静音（移除hover依赖），桌面端保留滑块
+  - 字体：时间码9px → 11px，队列位置9px → 11px
+  - 歌词面板：关闭按钮44px，播放控制52-56px，时间码11px
+- **SearchPanel**:
+  - 关闭按钮/标签页/收藏按钮 → 44px触控目标
+  - 搜索框字体14px → 15px
+  - 添加sp-btn/sp-like-btn移动端CSS类
+- **涉及文件**: `client/src/App.tsx`, `client/src/components/PlaylistPanel.tsx`, `client/src/components/SearchPanel.tsx`
+
 ### feat: 左右分屏布局 + 移动端适配
 - 新增分屏布局：桌面端点击歌词按钮后，左侧封面+右侧歌词
 - 可拖拽分割线：鼠标/触屏拖拽调整左右比例（25%~75%），双击重置50/50
