@@ -162,6 +162,10 @@ export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent
     }}>
       <style>{`
         @keyframes searchPulse { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
+        @media (max-width: 767px) {
+          .sp-btn { min-height: 44px; min-width: 44px; display: flex; align-items: center; justify-content: center; }
+          .sp-like-btn { min-height: 44px; min-width: 44px; display: flex; align-items: center; justify-content: center; font-size: 18px !important; }
+        }
       `}</style>
       {/* Header */}
       <div style={{
@@ -169,7 +173,7 @@ export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent
         padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
         <span style={{ fontSize: 16, fontWeight: 600, color: text, letterSpacing: 2 }}>搜索</span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: textDim, fontSize: 18, cursor: 'pointer' }}>✕</button>
+        <button onClick={onClose} className="sp-btn" style={{ background: 'none', border: 'none', color: textDim, fontSize: 18, cursor: 'pointer', minWidth: 44, minHeight: 44 }}>✕</button>
       </div>
 
       {/* Search input */}
@@ -181,15 +185,16 @@ export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent
             maxLength={100}
             placeholder="搜索歌曲、歌手..."
             style={{
-              width: '100%', padding: '12px 16px', borderRadius: 12,
+              width: '100%', padding: '14px 16px', borderRadius: 12,
               border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)',
-              color: text, fontSize: 14, outline: 'none',
+              color: text, fontSize: 15, outline: 'none',
             }}
           />
           {query && (
-            <button onClick={() => setQuery('')} style={{
-              position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+            <button onClick={() => setQuery('')} className="sp-btn" style={{
+              position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
               background: 'none', border: 'none', color: textDim, fontSize: 14, cursor: 'pointer',
+              minWidth: 44, minHeight: 44,
             }}>✕</button>
           )}
         </div>
@@ -201,11 +206,11 @@ export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent
         padding: '0 20px',
       }}>
         {(['search', 'favorites', 'history'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            padding: '10px 16px', background: 'none', border: 'none',
+          <button key={t} onClick={() => setTab(t)} className="sp-btn" style={{
+            padding: '12px 16px', background: 'none', border: 'none',
             color: tab === t ? accent : textDim,
             borderBottom: tab === t ? `2px solid ${accent}` : '2px solid transparent',
-            fontSize: 12, cursor: 'pointer', letterSpacing: 1, fontWeight: 600,
+            fontSize: 13, cursor: 'pointer', letterSpacing: 1, fontWeight: 600,
           }}>
             {t === 'search' ? '搜索' : t === 'favorites' ? '收藏' : '历史'}
           </button>
@@ -277,9 +282,10 @@ export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent
                       <div style={{ fontSize: 13, color: text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</div>
                       <div style={{ fontSize: 11, color: textDim }}>{s.artist} · {s.album}</div>
                     </div>
-                    <button onClick={(e) => { e.stopPropagation(); onToggleLike(s); }} style={{
+                    <button onClick={(e) => { e.stopPropagation(); onToggleLike(s); }} className="sp-like-btn" style={{
                       background: 'none', border: 'none', color: likedSongs.some(f => f.id === s.id) ? accent : textDim,
-                      fontSize: 14, cursor: 'pointer',
+                      fontSize: 16, cursor: 'pointer', minWidth: 44, minHeight: 44,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>♡</button>
                   </div>
                 ))}
@@ -310,8 +316,9 @@ export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent
                     <div style={{ fontSize: 13, color: text }}>{s.name}</div>
                     <div style={{ fontSize: 11, color: textDim }}>{s.artist}</div>
                   </div>
-                  <button onClick={(e) => { e.stopPropagation(); onToggleLike(s); }} style={{
-                    background: 'none', border: 'none', color: accent, fontSize: 14, cursor: 'pointer',
+                  <button onClick={(e) => { e.stopPropagation(); onToggleLike(s); }} className="sp-like-btn" style={{
+                    background: 'none', border: 'none', color: accent, fontSize: 16, cursor: 'pointer',
+                    minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>❤</button>
                 </div>
               ))

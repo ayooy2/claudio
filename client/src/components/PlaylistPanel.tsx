@@ -40,12 +40,23 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
   const [selectMode, setSelectMode] = useState(false);
   const [selectedSongs, setSelectedSongs] = useState<Set<string>>(new Set());
 
-  // 拖拽
+  // 拖拽（触屏禁用）
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // 移动到歌单
   const [showMoveTo, setShowMoveTo] = useState(false);
+
+  // 移动端检测 + 移动端tab切换
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
+  const [mobileTab, setMobileTab] = useState<'playlists' | 'songs'>('playlists');
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const handler = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    setIsMobile(mq.matches);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   // 加载歌单列表
   const fetchPlaylists = useCallback(async () => {
@@ -463,7 +474,8 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
       }} />
 
       <div style={{
-        position: 'absolute', top: 0, left: 0, bottom: 0, width: 500, zIndex: 60,
+        position: 'absolute', top: 0, left: 0, bottom: 0,
+        width: isMobile ? '100vw' : 500, maxWidth: isMobile ? '100vw' : '80vw', zIndex: 60,
         background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(20px)',
         borderRight: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column',
       }}>
@@ -473,6 +485,11 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
           .playlist-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
           .playlist-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
           @keyframes searchPulse { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
+          @media (max-width: 767px) {
+            .pl-btn { min-height: 40px; min-width: 40px; padding: 8px 12px !important; font-size: 12px !important; }
+            .pl-btn-sm { min-height: 36px; min-width: 36px; padding: 6px 10px !important; font-size: 11px !important; }
+            .pl-song-row { padding: 12px 0 !important; }
+          }
         `}</style>
 
         {/* 标题栏 */}
@@ -481,7 +498,7 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
           padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.1)',
         }}>
           <span style={{ fontSize: 12, color: textDim, letterSpacing: 2, fontWeight: 600 }}>歌单管理</span>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: textDim, fontSize: 16, cursor: 'pointer' }}>✕</button>
+          <button onClick={onClose} className="pl-btn" style={{ background: 'none', border: 'none', color: textDim, fontSize: 16, cursor: 'pointer', minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
         </div>
 
         {/* 错误提示 */}
@@ -495,12 +512,34 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
           </div>
         )}
 
+        {/* 移动端tab切换 */}
+        {isMobile && (
+          <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.1)', flexShrink: 0 }}>
+            <button onClick={() => setMobileTab('playlists')} style={{
+              flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
+              background: mobileTab === 'playlists' ? 'rgba(255,255,255,0.08)' : 'transparent',
+              color: mobileTab === 'playlists' ? accent : textDim,
+              fontSize: 13, fontWeight: mobileTab === 'playlists' ? 600 : 400,
+              borderBottom: mobileTab === 'playlists' ? `2px solid ${accent}` : '2px solid transparent',
+            }}>歌单列表</button>
+            <button onClick={() => setMobileTab('songs')} style={{
+              flex: 1, padding: '12px 0', border: 'none', cursor: 'pointer',
+              background: mobileTab === 'songs' ? 'rgba(255,255,255,0.08)' : 'transparent',
+              color: mobileTab === 'songs' ? accent : textDim,
+              fontSize: 13, fontWeight: mobileTab === 'songs' ? 600 : 400,
+              borderBottom: mobileTab === 'songs' ? `2px solid ${accent}` : '2px solid transparent',
+            }}>歌曲列表</button>
+          </div>
+        )}
+
         {/* 主内容区 */}
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          {/* 左侧歌单列表 */}
+          {/* 左侧歌单列表 (移动端按tab显示) */}
           <div style={{
-            width: 200, borderRight: '1px solid rgba(255,255,255,0.1)',
-            display: 'flex', flexDirection: 'column',
+            width: isMobile ? '100%' : 200,
+            borderRight: isMobile ? 'none' : '1px solid rgba(255,255,255,0.1)',
+            display: isMobile ? (mobileTab === 'playlists' ? 'flex' : 'none') : 'flex',
+            flexDirection: 'column',
           }}>
             {/* 创建歌单 */}
             <div style={{ padding: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
@@ -517,15 +556,16 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
                     color: text, fontSize: 11, outline: 'none',
                   }}
                 />
-                <button onClick={handleCreatePlaylist} style={{
+                <button onClick={handleCreatePlaylist} className="pl-btn" style={{
                   padding: '6px 10px', borderRadius: 8, border: 'none',
-                  background: accent, color: '#000', fontSize: 11, cursor: 'pointer', fontWeight: 600,
+                  background: accent, color: '#000', fontSize: 13, cursor: 'pointer', fontWeight: 600,
+                  minWidth: 40, minHeight: 40,
                 }}>+</button>
               </div>
-              <button onClick={() => setShowImport(!showImport)} style={{
-                marginTop: 6, width: '100%', padding: '6px', borderRadius: 8,
+              <button onClick={() => setShowImport(!showImport)} className="pl-btn" style={{
+                marginTop: 6, width: '100%', padding: '8px', borderRadius: 8,
                 border: '1px solid rgba(255,255,255,0.1)', background: 'transparent',
-                color: textDim, fontSize: 10, cursor: 'pointer',
+                color: textDim, fontSize: 11, cursor: 'pointer',
               }}>
                 {showImport ? '取消导入' : '导入歌单'}
               </button>
@@ -592,9 +632,12 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDeletePlaylist(pl.id); }}
+                    className="pl-btn-sm"
                     style={{
                       background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)',
-                      fontSize: 10, cursor: 'pointer', padding: '2px 6px', flexShrink: 0,
+                      fontSize: 12, cursor: 'pointer', padding: '4px 8px', flexShrink: 0,
+                      minWidth: 36, minHeight: 36,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}
                   >✕</button>
                 </div>
@@ -602,21 +645,24 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
             </div>
           </div>
 
-          {/* 右侧歌曲列表 */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          {/* 右侧歌曲列表 (移动端按tab显示) */}
+          <div style={{
+            flex: 1, display: isMobile ? (mobileTab === 'songs' ? 'flex' : 'none') : 'flex',
+            flexDirection: 'column', minWidth: 0,
+          }}>
             {/* 工具栏 */}
             <div style={{
               padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.1)',
               display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap',
             }}>
-              <button onClick={toggleSortDir} style={{
+              <button onClick={toggleSortDir} className="pl-btn-sm" style={{
                 padding: '3px 8px', borderRadius: 6, border: 'none',
                 background: accent, color: '#000', fontSize: 10, cursor: 'pointer', fontWeight: 600,
               }}>
                 {sortDir === 'asc' ? '↑' : '↓'} 添加顺序
               </button>
 
-              <button onClick={() => { setSelectMode(!selectMode); setSelectedSongs(new Set()); setShowMoveTo(false); }} style={{
+              <button onClick={() => { setSelectMode(!selectMode); setSelectedSongs(new Set()); setShowMoveTo(false); }} className="pl-btn-sm" style={{
                 padding: '3px 8px', borderRadius: 6,
                 border: selectMode ? `1px solid ${accent}` : '1px solid rgba(255,255,255,0.15)',
                 background: selectMode ? `${accent}20` : 'transparent',
@@ -627,7 +673,7 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
 
               {selectMode && (
                 <>
-                  <button onClick={toggleSelectAll} style={{
+                  <button onClick={toggleSelectAll} className="pl-btn-sm" style={{
                     padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.15)',
                     background: 'transparent', color: textDim, fontSize: 10, cursor: 'pointer',
                   }}>
@@ -636,13 +682,13 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
 
                   {selectedSongs.size > 0 && selectedPlaylistId !== 'default' && (
                     <>
-                      <button onClick={handleBatchDelete} style={{
+                      <button onClick={handleBatchDelete} className="pl-btn-sm" style={{
                         padding: '3px 8px', borderRadius: 6, border: 'none',
                         background: 'rgba(220,38,38,0.2)', color: '#fca5a5', fontSize: 10, cursor: 'pointer',
                       }}>
                         删除 ({selectedSongs.size})
                       </button>
-                      <button onClick={() => setShowMoveTo(!showMoveTo)} style={{
+                      <button onClick={() => setShowMoveTo(!showMoveTo)} className="pl-btn-sm" style={{
                         padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.15)',
                         background: showMoveTo ? `${accent}20` : 'transparent',
                         color: showMoveTo ? accent : textDim, fontSize: 10, cursor: 'pointer',
@@ -654,7 +700,7 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
                 </>
               )}
 
-              {selectedPlaylistId !== 'default' && !selectMode && (
+              {selectedPlaylistId !== 'default' && !selectMode && !isMobile && (
                 <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', marginLeft: 'auto' }}>
                   拖拽可排序
                 </span>
@@ -705,7 +751,8 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
                   return (
                     <div
                       key={song.id}
-                      draggable={selectedPlaylistId !== 'default' && !selectMode}
+                      className="pl-song-row"
+                      draggable={!isMobile && selectedPlaylistId !== 'default' && !selectMode}
                       onDragStart={() => handleDragStart(i)}
                       onDragOver={(e) => handleDragOver(e, i)}
                       onDrop={() => handleDrop(i)}
@@ -771,10 +818,13 @@ export default memo(function PlaylistPanel({ show, onClose, accent, text, textDi
                       {!selectMode && selectedPlaylistId !== 'default' && (
                         <button
                           onClick={(e) => { e.stopPropagation(); handleRemoveSong(song); }}
+                          className="pl-btn-sm"
                           style={{
                             background: 'none', border: 'none',
-                            color: 'rgba(255,255,255,0.3)', fontSize: 10,
-                            cursor: 'pointer', padding: '2px 4px',
+                            color: 'rgba(255,255,255,0.3)', fontSize: 12,
+                            cursor: 'pointer', padding: '4px 8px',
+                            minWidth: 36, minHeight: 36,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
                           }}
                         >✕</button>
                       )}

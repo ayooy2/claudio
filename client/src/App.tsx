@@ -1135,14 +1135,15 @@ export default function App() {
       )}
 
       {/* Controls + Progress - Three Column Layout */}
-      <div className="mobile-controls" style={{ padding: '0 16px 12px', flexShrink: 0, zIndex: 10 }}>
+      <div className="mobile-controls" style={{ padding: isMobile ? '0 10px 8px' : '0 16px 12px', flexShrink: 0, zIndex: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
           {/* Left: Queue + Transport Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8 }}>
             {/* Queue */}
             <button onClick={() => setShowQueue(!showQueue)} style={{
               background: 'none', border: 'none', cursor: 'pointer', color: sc.textDim,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: isMobile ? 44 : 28, height: isMobile ? 44 : 28,
               opacity: 0.5, transition: 'opacity 0.2s',
             }} onMouseEnter={e => e.currentTarget.style.opacity = '1'} onMouseLeave={e => e.currentTarget.style.opacity = '0.5'}>
               <IconQueue />
@@ -1150,7 +1151,7 @@ export default function App() {
 
             {/* Prev */}
             <button onClick={handlePrev} style={{
-              width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
+              width: isMobile ? 44 : 36, height: isMobile ? 44 : 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
               background: 'rgba(255,255,255,0.06)', color: sc.textDim,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               transition: 'all 0.2s ease',
@@ -1160,7 +1161,7 @@ export default function App() {
 
             {/* Play/Pause */}
             <button onClick={handleToggle} style={{
-              width: 48, height: 48, borderRadius: '50%', border: 'none', cursor: 'pointer',
+              width: isMobile ? 52 : 48, height: isMobile ? 52 : 48, borderRadius: '50%', border: 'none', cursor: 'pointer',
               background: 'transparent', color: sc.accent,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               transition: 'all 0.2s ease',
@@ -1171,7 +1172,7 @@ export default function App() {
 
             {/* Next */}
             <button onClick={handleNext} style={{
-              width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
+              width: isMobile ? 44 : 36, height: isMobile ? 44 : 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
               background: 'rgba(255,255,255,0.06)', color: sc.textDim,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               transition: 'all 0.2s ease',
@@ -1181,12 +1182,16 @@ export default function App() {
           </div>
 
           {/* Center: Progress Bar */}
-          <div style={{ flex: 1, margin: '0 20px' }}>
+          <div style={{ flex: 1, margin: isMobile ? '0 8px' : '0 20px', minWidth: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span style={{ fontSize: 10, color: sc.textDim, fontVariantNumeric: 'tabular-nums' }}>{fmtTime(currentTime)}</span>
-              <span style={{ fontSize: 10, color: sc.textDim, fontVariantNumeric: 'tabular-nums' }}>{fmtTime(duration)}</span>
+              <span style={{ fontSize: isMobile ? 11 : 10, color: sc.textDim, fontVariantNumeric: 'tabular-nums' }}>{fmtTime(currentTime)}</span>
+              <span style={{ fontSize: isMobile ? 11 : 10, color: sc.textDim, fontVariantNumeric: 'tabular-nums' }}>{fmtTime(duration)}</span>
             </div>
-            <div style={{ height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2, cursor: 'pointer', position: 'relative' }}
+            <div style={{
+              height: isMobile ? 20 : 4, background: 'rgba(255,255,255,0.08)',
+              borderRadius: 2, cursor: 'pointer', position: 'relative',
+              display: 'flex', alignItems: 'center',
+            }}
               onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); handleSeek((e.clientX - r.left) / r.width); }}
               onMouseDown={(e) => {
                 const bar = e.currentTarget;
@@ -1199,27 +1204,40 @@ export default function App() {
                 dragCleanupRef.current = cleanup;
                 window.addEventListener('mousemove', onMove);
                 window.addEventListener('mouseup', onUp);
-              }}>
-              <div style={{ width: `${pct}%`, height: '100%', background: sc.accent, borderRadius: 2, transition: 'width 0.1s linear' }} />
+              }}
+              onTouchStart={(e) => {
+                const bar = e.currentTarget;
+                const onTouchMove = (ev: TouchEvent) => {
+                  ev.preventDefault();
+                  const r = bar.getBoundingClientRect();
+                  handleSeek(Math.max(0, Math.min(1, (ev.touches[0].clientX - r.left) / r.width)));
+                };
+                const onTouchEnd = () => { window.removeEventListener('touchmove', onTouchMove); window.removeEventListener('touchend', onTouchEnd); };
+                window.addEventListener('touchmove', onTouchMove, { passive: false });
+                window.addEventListener('touchend', onTouchEnd);
+              }}
+            >
+              <div style={{ width: `${pct}%`, height: isMobile ? 4 : '100%', background: sc.accent, borderRadius: 2, transition: 'width 0.1s linear', position: 'absolute', left: 0 }} />
               <div style={{
-                position: 'absolute', top: '50%', left: `${pct}%`,
-                width: 10, height: 10, borderRadius: '50%', background: sc.accent,
-                transform: 'translate(-50%, -50%)', opacity: 0.8,
+                position: 'absolute', left: `${pct}%`,
+                width: isMobile ? 14 : 10, height: isMobile ? 14 : 10, borderRadius: '50%', background: sc.accent,
+                transform: 'translate(-50%, 0)', opacity: 0.8,
               }} />
             </div>
             {queue.length > 0 && (
-              <div style={{ textAlign: 'center', marginTop: 4, fontSize: 9, color: sc.textDim, opacity: 0.3 }}>
+              <div style={{ textAlign: 'center', marginTop: 4, fontSize: isMobile ? 11 : 9, color: sc.textDim, opacity: 0.3 }}>
                 {queueIdx + 1} / {queue.length}
               </div>
             )}
           </div>
 
           {/* Right: Utility Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 0 : 6 }}>
             {/* Like */}
             <button onClick={toggleLike} style={{
               background: 'none', border: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: isMobile ? 44 : 28, height: isMobile ? 44 : 28,
               transition: 'all 0.2s ease',
             }}>
               <IconHeart filled={current ? liked.has(current.id) : false} />
@@ -1229,7 +1247,8 @@ export default function App() {
             <button onClick={() => setShowLyrics(!showLyrics)} style={{
               background: showLyrics ? `${sc.accent}15` : 'none',
               border: 'none', borderRadius: 6,
-              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: isMobile ? 44 : 28, height: isMobile ? 44 : 28,
               transition: 'all 0.2s ease',
             }}>
               <IconLyrics active={showLyrics} />
@@ -1238,29 +1257,40 @@ export default function App() {
             {/* Play Mode */}
             <button onClick={() => setPlayMode(m => m === 'sequence' ? 'shuffle' : m === 'shuffle' ? 'loop' : 'sequence')} style={{
               background: 'none', border: 'none', borderRadius: 6,
-              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: isMobile ? 44 : 28, height: isMobile ? 44 : 28,
               transition: 'all 0.2s ease',
             }} title={playMode === 'sequence' ? '顺序播放' : playMode === 'shuffle' ? '随机播放' : '列表循环'}>
               {playMode === 'sequence' ? <IconSequence /> : playMode === 'shuffle' ? <IconShuffle /> : <IconLoop />}
             </button>
 
-            {/* Volume */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}
-              onMouseEnter={() => setVolumeVisible(true)} onMouseLeave={() => setVolumeVisible(false)}>
+            {/* Volume — 移动端点击静音，桌面端hover显示滑块 */}
+            {isMobile ? (
               <button onClick={toggleMute} style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 44, height: 44,
               }}>
                 <IconVolume muted={isMuted || volume === 0} low={volume < 0.5} />
               </button>
-              <input type="range" min={0} max={100} value={isMuted ? 0 : Math.round(volume * 100)}
-                onChange={e => setVolume(Number(e.target.value) / 100)}
-                aria-label="音量"
-                style={{
-                  width: 56, accentColor: sc.accent, height: 2,
-                  opacity: volumeVisible ? 0.8 : 0.3, transition: 'opacity 0.3s',
-                }} />
-            </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                onMouseEnter={() => setVolumeVisible(true)} onMouseLeave={() => setVolumeVisible(false)}>
+                <button onClick={toggleMute} style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28,
+                }}>
+                  <IconVolume muted={isMuted || volume === 0} low={volume < 0.5} />
+                </button>
+                <input type="range" min={0} max={100} value={isMuted ? 0 : Math.round(volume * 100)}
+                  onChange={e => setVolume(Number(e.target.value) / 100)}
+                  aria-label="音量"
+                  style={{
+                    width: 56, accentColor: sc.accent, height: 2,
+                    opacity: volumeVisible ? 0.8 : 0.3, transition: 'opacity 0.3s',
+                  }} />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1299,10 +1329,11 @@ export default function App() {
             </div>
             <button onClick={() => setShowLyrics(false)} style={{
               background: 'rgba(255,255,255,0.1)', border: 'none',
-              borderRadius: 16, padding: '5px 14px', cursor: 'pointer',
-              color: sc.textDim, fontSize: 11, letterSpacing: 0.5,
+              borderRadius: 16, padding: '10px 18px', cursor: 'pointer',
+              color: sc.textDim, fontSize: 12, letterSpacing: 0.5,
               backdropFilter: 'blur(8px)',
               flexShrink: 0, marginLeft: 12,
+              minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>收起</button>
           </div>
 
@@ -1393,28 +1424,30 @@ export default function App() {
                 }} />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                <span style={{ fontSize: 9, color: sc.textDim, fontVariantNumeric: 'tabular-nums', opacity: 0.6 }}>{fmtTime(currentTime)}</span>
-                <span style={{ fontSize: 9, color: sc.textDim, fontVariantNumeric: 'tabular-nums', opacity: 0.6 }}>{fmtTime(duration)}</span>
+                <span style={{ fontSize: 11, color: sc.textDim, fontVariantNumeric: 'tabular-nums', opacity: 0.6 }}>{fmtTime(currentTime)}</span>
+                <span style={{ fontSize: 11, color: sc.textDim, fontVariantNumeric: 'tabular-nums', opacity: 0.6 }}>{fmtTime(duration)}</span>
               </div>
             </div>
             {/* 播放控制 */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
               <button onClick={handlePrev} style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                color: sc.textDim, fontSize: 18, opacity: 0.7,
+                color: sc.textDim, fontSize: 20, opacity: 0.7,
                 transition: 'opacity 0.2s',
+                width: 52, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>⏮</button>
               <button onClick={handleToggle} style={{
-                width: 46, height: 46, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                width: 56, height: 56, borderRadius: '50%', border: 'none', cursor: 'pointer',
                 background: 'transparent', color: sc.text,
-                fontSize: 18,
+                fontSize: 20,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all 0.2s ease',
               }}>{isPlaying ? '⏸' : '▶'}</button>
               <button onClick={handleNext} style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                color: sc.textDim, fontSize: 18, opacity: 0.7,
+                color: sc.textDim, fontSize: 20, opacity: 0.7,
                 transition: 'opacity 0.2s',
+                width: 52, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>⏭</button>
             </div>
           </div>
