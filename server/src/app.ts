@@ -60,6 +60,7 @@ export function createApp() {
   app.use(helmet({
     contentSecurityPolicy: false, // SPA 需要内联样式
     crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: false, // 音频代理需要跨域加载
   }));
   app.use(cors({ origin: allowedOrigins }));
   app.use(express.json({ limit: '1mb' })); // 限制请求体大小

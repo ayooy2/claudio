@@ -183,6 +183,13 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
         // 新播放中断了旧播放，不算错误
         return;
       }
+      // 浏览器自动播放策略拦截：音频已加载，用户点击播放按钮即可播放
+      if (e instanceof Error && e.name === 'NotAllowedError') {
+        console.warn('自动播放被浏览器拦截，请点击播放按钮');
+        // 不设置 playError — 音频已加载就绪，只需用户点击播放
+        setIsPlaying(false);
+        return;
+      }
       // code=4 时，可能是 URL 过期或格式不支持，尝试强制重新获取
       if (e instanceof Error && e.message?.includes('code=4')) {
         console.warn('媒体错误 code=4，尝试重新获取 URL...');
@@ -251,9 +258,14 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
         setIsPlaying(true);
         setPlayError(null);
       }).catch((e: unknown) => {
-        const msg = e instanceof Error ? e.message : '播放失败';
         // AbortError 不算错误（新播放中断旧播放）
         if (e instanceof Error && e.name === 'AbortError') return;
+        // NotAllowedError: 在点击处理器中不应该发生，但以防万一
+        if (e instanceof Error && e.name === 'NotAllowedError') {
+          console.warn('togglePlay: 自动播放被拦截');
+          return;
+        }
+        const msg = e instanceof Error ? e.message : '播放失败';
         setPlayError(msg);
         setIsPlaying(false);
       });
