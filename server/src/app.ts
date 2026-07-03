@@ -196,11 +196,24 @@ export function createApp() {
       let cover: string | null = null;
       // If no ID but have name, resolve from cache or search
       if (!songId && name) {
-        // Search to get both songId and cover
-        const searchRes = await musicService.search(`${name} ${artist || ''}`.trim(), 1);
+        // Search with more results to find artist match
+        const searchRes = await musicService.search(`${name} ${artist || ''}`.trim(), 5);
         if (searchRes.songs.length > 0) {
-          songId = searchRes.songs[0].id;
-          cover = searchRes.songs[0].cover ?? null;
+          // 优先匹配歌手名：避免热门翻唱版本覆盖用户指定的歌手
+          let matched = searchRes.songs[0];
+          if (artist) {
+            const artistLower = artist.toLowerCase().split('/')[0].trim();
+            const exact = searchRes.songs.find(s =>
+              s.artist.toLowerCase().split('/')[0].trim() === artistLower
+            );
+            const partial = searchRes.songs.find(s =>
+              s.artist.toLowerCase().includes(artistLower) ||
+              artistLower.includes(s.artist.toLowerCase().split('/')[0].trim())
+            );
+            matched = exact || partial || matched;
+          }
+          songId = matched.id;
+          cover = matched.cover ?? null;
         }
       }
       if (!songId) return res.json({ url: null, error: '未找到歌曲' });

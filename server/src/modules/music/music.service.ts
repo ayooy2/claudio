@@ -229,11 +229,23 @@ export class MusicService {
     const cached = songIdCache.get(cacheKey);
     if (cached) return cached;
 
-    const searchRes = await this.search(`${name} ${artist}`.trim(), 1);
+    const searchRes = await this.search(`${name} ${artist}`.trim(), 5);
     if (searchRes.songs.length > 0) {
-      const id = searchRes.songs[0].id;
-      songIdCache.set(cacheKey, id, SONGID_CACHE_TTL);
-      return id;
+      // 优先匹配歌手名，避免热门翻唱覆盖用户指定的版本
+      let matched = searchRes.songs[0];
+      if (artist) {
+        const artistLower = artist.toLowerCase().split('/')[0].trim();
+        const exact = searchRes.songs.find(s =>
+          s.artist.toLowerCase().split('/')[0].trim() === artistLower
+        );
+        const partial = searchRes.songs.find(s =>
+          s.artist.toLowerCase().includes(artistLower) ||
+          artistLower.includes(s.artist.toLowerCase().split('/')[0].trim())
+        );
+        matched = exact || partial || matched;
+      }
+      songIdCache.set(cacheKey, matched.id, SONGID_CACHE_TTL);
+      return matched.id;
     }
     return null;
   }
