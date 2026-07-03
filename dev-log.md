@@ -84,3 +84,18 @@
 - 批量操作、拖拽排序、点击外部关闭
 - 修复降序模式下拖拽索引错误
 - Promise.allSettled 替代 Promise.all
+
+## 2026-07-03
+
+### fix: 播放逻辑永久修复 — 事件监听竞态/重试条件/togglePlay检测
+- **根因1**: `usePlayer.ts` 中先设置 `audio.src` 再添加 `canplay` 事件监听器，缓存命中时 `canplay` 在监听器注册前触发，导致 Promise 永久挂起直到 30s 超时
+- **根因2**: `audio.currentSrc === url` 比较失效 — 浏览器将 `currentSrc` 规范化为绝对URL，与相对路径 `/api/audio-proxy?url=...` 永远不匹配
+- **根因3**: code=4 重试条件检查 `song.url`（播放列表歌曲始终为 null），导致 URL 过期重试永远不触发
+- **根因4**: `togglePlay` 仅检查 `audio.src`，未检查 `audio.currentSrc`，部分场景误判为"没有可播放的歌曲"
+- **修复**:
+  - 先注册 `canplay`/`error` 监听器，再赋值 `audio.src`（消除竞态条件）
+  - 改用 `readyState >= HAVE_FUTURE_DATA` 检测缓存命中（无需URL字符串比较）
+  - code=4 重试不再依赖 `song.url` 条件
+  - `togglePlay` 同时检查 `src` 和 `currentSrc`
+  - 重试块同样修复事件监听顺序
+  - 增强 `ensureAudioReady` 注释说明其用途
