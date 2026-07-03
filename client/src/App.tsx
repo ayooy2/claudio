@@ -1583,12 +1583,14 @@ export default function App() {
       {/* 播放错误提示 */}
       {playError && (
         <div onClick={clearError} role="alert" aria-live="assertive" style={{
-          position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)',
+          position: 'fixed', bottom: isMobile ? 70 : 100, left: '50%', transform: 'translateX(-50%)',
           background: 'rgba(220,38,38,0.9)', backdropFilter: 'blur(8px)',
           padding: '8px 20px', borderRadius: 20, zIndex: 200,
           color: '#fff', fontSize: 12, cursor: 'pointer',
           animation: 'fadeIn 0.3s ease',
           boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+          maxWidth: isMobile ? '90vw' : '80vw', textAlign: 'center',
+          wordBreak: 'break-word',
         }}>
           ⚠ {playError}（点击关闭）
         </div>

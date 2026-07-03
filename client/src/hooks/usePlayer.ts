@@ -61,6 +61,7 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
 
     let url = song.url;
     let timedOut = false;
+    let serverError: string | null = null;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
     // 如果歌曲已有URL，无需加载，清除可能残留的 loading 状态
@@ -87,6 +88,8 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
             url = toAbsoluteUrl(data.url);
             if (url) {
               setCurrent(prev => prev ? { ...prev, url, id: data.id || prev.id, cover: data.cover || prev.cover } : prev);
+            } else if (data.error) {
+              serverError = data.error;
             }
             break;
           } catch (e: unknown) {
@@ -111,7 +114,13 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
 
     if (!url) {
       setIsPlaying(false);
-      setPlayError(timedOut ? '连接超时，服务器可能正在启动中（约需30-60秒），请稍后重试' : '获取歌曲链接失败');
+      if (timedOut) {
+        setPlayError('连接超时，服务器可能正在启动中（约需30-60秒），请稍后重试');
+      } else if (serverError) {
+        setPlayError(serverError);
+      } else {
+        setPlayError('获取歌曲链接失败');
+      }
       return;
     }
 

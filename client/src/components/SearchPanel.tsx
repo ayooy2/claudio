@@ -88,10 +88,16 @@ export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        setResult({ songs: data.songs || [], loading: false });
+        if (data.error && (!data.songs || data.songs.length === 0)) {
+          setResult({ songs: [], loading: false });
+          showTempError(`搜索失败: ${data.error}`);
+        } else {
+          setResult({ songs: data.songs || [], loading: false });
+        }
       } catch (err: unknown) {
         if (!(err instanceof Error && err.name === 'AbortError')) {
           setResult({ songs: [], loading: false });
+          showTempError(`搜索请求失败: ${err instanceof Error ? err.message : '网络错误'}`);
         }
       }
     }, 300);
@@ -114,10 +120,10 @@ export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent
         onSelect({ ...song, url: toAbsoluteUrl(data.url)!, isTrial: data.isTrial });
         onClose();
       } else {
-        showTempError('该歌曲暂无可用播放链接');
+        showTempError(data.error || '该歌曲暂无可用播放链接');
       }
     } catch (err) {
-      showTempError('获取播放链接失败，请重试');
+      showTempError(`获取播放链接失败: ${err instanceof Error ? err.message : '请重试'}`);
     }
   };
 
@@ -134,10 +140,10 @@ export default function SearchPanel({ onSelect, likedSongs, onToggleLike, accent
         onSelect({ id: data.id || entry.id || '', name: entry.name, artist: entry.artist, album: entry.album, duration: 0, fee: 0, url: toAbsoluteUrl(data.url)!, isTrial: data.isTrial });
         onClose();
       } else {
-        showTempError('该歌曲暂无可用播放链接');
+        showTempError(data.error || '该歌曲暂无可用播放链接');
       }
     } catch (err) {
-      showTempError('获取播放链接失败，请重试');
+      showTempError(`获取播放链接失败: ${err instanceof Error ? err.message : '请重试'}`);
     }
   };
 
