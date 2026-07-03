@@ -161,10 +161,11 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
         audio.addEventListener('canplay', onCanPlay, { once: true });
         audio.addEventListener('error', onErr, { once: true });
         audio.src = url;
+        audio.load(); // 显式触发加载，确保 readyState 重置
         audio.volume = volumeRef.current;
-        // 如果 readyState 已经就绪（缓存命中），直接 resolve
-        // 用 startsWith 比较，因为浏览器会将 currentSrc 规范化为绝对 URL
-        if (audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+        // 检查 currentSrc 是否匹配 + readyState 是否就绪（真正的缓存命中）
+        const absUrl = new URL(url, window.location.href).href;
+        if (audio.currentSrc === absUrl && audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
           cleanup(); resolve(); return;
         }
         // 需要等待加载，设置超时
@@ -183,11 +184,11 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
         // 新播放中断了旧播放，不算错误
         return;
       }
-      // 浏览器自动播放策略拦截：音频已加载，用户点击播放按钮即可播放
+      // 浏览器自动播放策略拦截：音频已加载，提示用户点击播放按钮
       if (e instanceof Error && e.name === 'NotAllowedError') {
         console.warn('自动播放被浏览器拦截，请点击播放按钮');
-        // 不设置 playError — 音频已加载就绪，只需用户点击播放
         setIsPlaying(false);
+        setPlayError('请点击播放按钮');
         return;
       }
       // code=4 时，可能是 URL 过期或格式不支持，尝试强制重新获取
@@ -201,7 +202,7 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
           if (retriedUrl) {
             // Check if a newer play() has started during fetch
             if (playSeqRef.current !== seq) return;
-            // 更新 song 的 url 和 queue 中的引用
+            // 更新 song 的 url
             song.url = retriedUrl;
             const a = audioRef.current!;
             a.volume = volumeRef.current;
@@ -218,7 +219,9 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
               a.addEventListener('canplay', onOk, { once: true });
               a.addEventListener('error', onErr2, { once: true });
               a.src = retriedUrl;
-              if (a.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+              a.load();
+              const absUrl2 = new URL(retriedUrl, window.location.href).href;
+              if (a.currentSrc === absUrl2 && a.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
                 cleanup2(); resolve(); return;
               }
               retryTimer = setTimeout(() => { cleanup2(); reject(new Error('重试超时')); }, 30000);
@@ -265,6 +268,13 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
           console.warn('togglePlay: 自动播放被拦截');
           return;
         }
+        // 其他错误：尝试重新获取 URL 播放（URL 可能已过期）
+        const cur = current;
+        if (playRef.current && cur) {
+          console.warn('togglePlay 播放失败，尝试重新获取 URL...');
+          playRef.current(cur);
+          return;
+        }
         const msg = e instanceof Error ? e.message : '播放失败';
         setPlayError(msg);
         setIsPlaying(false);
@@ -273,7 +283,7 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
       audio.pause();
       setIsPlaying(false);
     }
-  }, []);
+  }, [current]);
 
   const setVolume = useCallback((v: number) => {
     const val = Math.max(0, Math.min(1, v));

@@ -313,7 +313,7 @@ export function createApp() {
 
       const audioRes = await fetch(audioUrl, {
         headers: upstreamHeaders,
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(30_000), // 30s 建立连接+首字节，流式传输不计时
       });
       // 上游可能返回 206 或 200
       if (!audioRes.ok && audioRes.status !== 206) {

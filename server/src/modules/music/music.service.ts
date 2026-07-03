@@ -207,10 +207,10 @@ export class MusicService {
             cover: album?.picUrl ?? null,
           };
         });
-      // Sort by popularity descending, then VIP songs first within same pop
+      // Sort by popularity descending, then free songs first (fee=0 before fee=8/VIP)
       const sorted = allSongs.sort((a, b) => {
         if ((b.pop ?? 0) !== (a.pop ?? 0)) return (b.pop ?? 0) - (a.pop ?? 0);
-        return b.fee - a.fee;
+        return a.fee - b.fee; // 可播放的免费歌曲排前面
       });
 
       // Cache result

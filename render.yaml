@@ -14,7 +14,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: CORS_ORIGINS
-        value: https://claudio.pages.dev,https://claudio-api.onrender.com
+        value: https://claudio.pages.dev,https://claudio-api.onrender.com,https://claudio-api-rymi.onrender.com
       - key: NETEASE_API_BASE
         value: https://claudio-netease.onrender.com
       - key: NETEASE_COOKIE

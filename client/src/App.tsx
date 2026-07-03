@@ -509,11 +509,8 @@ export default function App() {
         const n = (idx + 1) % q.length;
         setQueueIdx(n);
         setCurrentTime(0);
-        play(q[n]).catch(e => {
-          // play() 内部已设置 playError，此处仅确保 isPlaying 状态正确
-          console.warn('自动播放下一首失败:', e instanceof Error ? e.message : e);
-          setIsPlaying(false);
-        });
+        // play() 内部已处理 NotAllowedError（设置 playError 提示用户点击播放）
+        play(q[n]).catch(() => {});
       } else {
         setIsPlaying(false);
       }
@@ -1301,7 +1298,10 @@ export default function App() {
             const exists = prev.some(s => s.id === song.id);
             const newIdx = exists ? prev.findIndex(s => s.id === song.id) : prev.length;
             setQueueIdx(newIdx);
-            return exists ? prev : [...prev, song];
+            queueIdxRef.current = newIdx; // 立即同步 ref，避免 onended 读到旧值
+            const newQueue = exists ? prev : [...prev, song];
+            queueRef.current = newQueue;
+            return newQueue;
           });
           setCurrentTime(0);
           play(song);
