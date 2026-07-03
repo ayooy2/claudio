@@ -99,3 +99,12 @@
   - `togglePlay` 同时检查 `src` 和 `currentSrc`
   - 重试块同样修复事件监听顺序
   - 增强 `ensureAudioReady` 注释说明其用途
+
+### fix: 修复播放失败 — CORS/CORP跨域配置 + NotAllowedError处理
+- **根因5**: `render.yaml` 未设置 `CORS_ORIGINS`，生产环境跨域请求被CORS策略拦截
+- **根因6**: `helmet` 默认设置 `Cross-Origin-Resource-Policy: same-origin`，阻止跨域音频加载（Cloudflare Pages → Render）
+- **根因7**: `audio.play()` 在异步上下文中被浏览器自动播放策略拦截（NotAllowedError），原代码显示为错误
+- **修复**:
+  - `render.yaml`: 添加 `CORS_ORIGINS` 允许 Cloudflare Pages 和 Render 域名
+  - `app.ts`: helmet 禁用 `crossOriginResourcePolicy`（音频代理需跨域加载）
+  - `usePlayer.ts`: NotAllowedError 不显示错误，音频已加载就绪，用户点击播放按钮即可播放
