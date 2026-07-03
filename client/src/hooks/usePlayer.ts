@@ -91,7 +91,7 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
             const data = await res.json();
             url = toAbsoluteUrl(data.url);
             if (url) {
-              setCurrent(prev => prev ? { ...prev, url, id: data.id || prev.id, cover: data.cover || prev.cover } : prev);
+              setCurrent(prev => prev ? { ...prev, url, id: data.id || prev.id, cover: data.cover || prev.cover, isTrial: data.isTrial } : prev);
             } else if (data.error) {
               serverError = data.error;
             }
@@ -192,11 +192,12 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
         return;
       }
       // code=4 时，可能是 URL 过期或格式不支持，尝试强制重新获取
+      // 用 name+artist 而非 id（播放列表的 id 是合成的 pl_0_xxx，服务端无法识别）
       if (e instanceof Error && e.message?.includes('code=4')) {
         console.warn('媒体错误 code=4，尝试重新获取 URL...');
         try {
           const brParam = qualityRef?.current ? `&br=${qualityRef.current}` : '';
-          const res = await fetch(apiUrl(`/api/song-url?id=${song.id}&force=true${brParam}`), { signal: AbortSignal.timeout(20000) });
+          const res = await fetch(apiUrl(`/api/song-url?name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(song.artist)}&force=true${brParam}`), { signal: AbortSignal.timeout(20000) });
           const data = await res.json();
           const retriedUrl = toAbsoluteUrl(data.url);
           if (retriedUrl) {
@@ -271,7 +272,8 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
         // 其他错误：尝试重新获取 URL 播放（URL 可能已过期）
         const cur = current;
         if (playRef.current && cur) {
-          console.warn('togglePlay 播放失败，尝试重新获取 URL...');
+          console.warn('togglePlay 播放失败，清空缓存URL后重试...');
+          cur.url = null; // 清空过期URL，迫使 play() 重新获取
           playRef.current(cur);
           return;
         }

@@ -72,7 +72,7 @@ const urlLimiter = new RateLimiter();
 
 // Cache TTLs
 const SEARCH_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
-const URL_CACHE_TTL = 60 * 60 * 1000;         // 1 hour (URLs expire)
+const URL_CACHE_TTL = 10 * 60 * 1000;         // 10 min (CDN签名URL约20分钟过期，留安全余量)
 const COMMENT_CACHE_TTL = 12 * 60 * 60 * 1000; // 12 hours
 const SONGID_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 

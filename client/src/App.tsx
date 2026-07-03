@@ -288,6 +288,8 @@ export default function App() {
   const [volumeVisible, setVolumeVisible] = useState(false);
   const [comment, setComment] = useState<{ content: string; nickname: string; likedCount: number } | null>(null);
   const [playMode, setPlayMode] = useState<'sequence' | 'loop' | 'shuffle'>(() => loadState('claudio_play_mode', 'sequence'));
+  const playModeRef = useRef(playMode);
+  useEffect(() => { playModeRef.current = playMode; }, [playMode]);
   const playedIndicesRef = useRef(new Set<number>());
   const [bgLoaded, setBgLoaded] = useState(false);
   const [coverMode, setCoverMode] = useState<'vinyl' | 'fullcover'>(() => loadState('claudio_cover_mode', 'vinyl'));
@@ -505,15 +507,40 @@ export default function App() {
     el.onended = () => {
       const q = queueRef.current;
       const idx = queueIdxRef.current;
-      if (q.length > 1) {
-        const n = (idx + 1) % q.length;
-        setQueueIdx(n);
-        setCurrentTime(0);
-        // play() 内部已处理 NotAllowedError（设置 playError 提示用户点击播放）
-        play(q[n]).catch(() => {});
-      } else {
-        setIsPlaying(false);
+      const mode = playModeRef.current;
+      if (q.length === 0) { setIsPlaying(false); return; }
+
+      if (mode === 'loop') {
+        // 单曲循环：重新播放当前歌曲
+        el.currentTime = 0;
+        el.play().then(() => setIsPlaying(true)).catch(() => {});
+        return;
       }
+
+      if (q.length === 1) {
+        // 只有一首歌：循环播放
+        el.currentTime = 0;
+        el.play().then(() => setIsPlaying(true)).catch(() => {});
+        return;
+      }
+
+      let n: number;
+      if (mode === 'shuffle') {
+        const currentPlayed = playedIndicesRef.current;
+        if (currentPlayed.size >= q.length) playedIndicesRef.current = new Set();
+        const effectivePlayed = currentPlayed.size >= q.length ? new Set<number>() : currentPlayed;
+        const available = q.map((_, i) => i).filter(i => !effectivePlayed.has(i) && i !== idx);
+        n = available.length > 0
+          ? available[Math.floor(Math.random() * available.length)]
+          : Math.floor(Math.random() * q.length);
+        playedIndicesRef.current = new Set([...playedIndicesRef.current, n]);
+      } else {
+        // 顺序播放
+        n = (idx + 1) % q.length;
+      }
+      setQueueIdx(n);
+      setCurrentTime(0);
+      play(q[n]).catch(() => {});
     };
     el.volume = volumeRef.current;
   }, []);
@@ -1091,6 +1118,12 @@ export default function App() {
                 fontSize: [11, 14, 17][hc], color: sc.textDim, marginTop: [3, 4, 6][hc],
                 transition: 'font-size 0.5s cubic-bezier(0.4,0,0.2,1)',
               }}>{current.artist}</div>
+              {current.isTrial && (
+                <div style={{
+                  fontSize: [9, 10, 11][hc], color: '#fbbf24', marginTop: [2, 3, 4][hc],
+                  letterSpacing: 1, opacity: 0.8,
+                }}>⏱ 试听30秒 · VIP可听完整版</div>
+              )}
             </div>
           )}
 
