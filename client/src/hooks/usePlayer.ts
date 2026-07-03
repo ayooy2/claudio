@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback } from 'react';
 import { apiUrl, toAbsoluteUrl } from '../lib/api.js';
 
-// iOS Safari autoplay unlock — lazy AudioContext that resumes on first play()
+// iOS Safari / 移动端浏览器 autoplay unlock — 恢复被挂起的 AudioContext
 let _audioCtx: AudioContext | null = null;
 async function ensureAudioReady(): Promise<void> {
   try {
@@ -9,8 +9,12 @@ async function ensureAudioReady(): Promise<void> {
       const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AC) _audioCtx = new AC();
     }
-    if (_audioCtx?.state === 'suspended') await _audioCtx.resume();
-  } catch { /* non-critical */ }
+    if (_audioCtx?.state === 'suspended') {
+      await _audioCtx.resume();
+    }
+  } catch {
+    // non-critical: AudioContext 解锁失败不影响 <audio> 元素播放
+  }
 }
 
 export interface SongInfo {
@@ -134,7 +138,7 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
     // 停止当前播放
     try { audio.pause(); } catch {}
 
-    // 先添加事件监听，再设置 src（浏览器会在 src 赋值后自动开始加载）
+    // 先添加事件监听，再设置 src，避免缓存命中时 canplay 在监听器之前触发的竞态条件
     try {
       await new Promise<void>((resolve, reject) => {
         let timer: ReturnType<typeof setTimeout> | undefined;
@@ -153,16 +157,17 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
           audio.removeEventListener('error', onErr);
           if (timer) clearTimeout(timer);
         };
-        // 设置 src 触发加载（先赋值 src，再检查 readyState）
-        audio.src = url;
-        audio.volume = volumeRef.current;
-        // 如果同一首歌已经可以播放，直接 resolve（在 src 赋值后检查）
-        if (audio.currentSrc === url && audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
-          resolve(); return;
-        }
-        // 需要等待加载，添加事件监听和超时
+        // 先注册事件监听器，再赋值 src（确保不会错过已缓存音频的 canplay 事件）
         audio.addEventListener('canplay', onCanPlay, { once: true });
         audio.addEventListener('error', onErr, { once: true });
+        audio.src = url;
+        audio.volume = volumeRef.current;
+        // 如果 readyState 已经就绪（缓存命中），直接 resolve
+        // 用 startsWith 比较，因为浏览器会将 currentSrc 规范化为绝对 URL
+        if (audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+          cleanup(); resolve(); return;
+        }
+        // 需要等待加载，设置超时
         timer = setTimeout(() => { cleanup(); reject(new Error('音频加载超时（30s）')); }, 30000);
       });
 
@@ -178,8 +183,8 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
         // 新播放中断了旧播放，不算错误
         return;
       }
-      // code=4 且有 URL 时，可能是 URL 过期，尝试强制重新获取
-      if (e instanceof Error && e.message?.includes('code=4') && song.url) {
+      // code=4 时，可能是 URL 过期或格式不支持，尝试强制重新获取
+      if (e instanceof Error && e.message?.includes('code=4')) {
         console.warn('媒体错误 code=4，尝试重新获取 URL...');
         try {
           const brParam = qualityRef?.current ? `&br=${qualityRef.current}` : '';
@@ -192,14 +197,24 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
             // 更新 song 的 url 和 queue 中的引用
             song.url = retriedUrl;
             const a = audioRef.current!;
-            a.src = retriedUrl;
             a.volume = volumeRef.current;
             await new Promise<void>((resolve, reject) => {
-              const onOk = () => { a.removeEventListener('error', onErr2); resolve(); };
-              const onErr2 = () => { a.removeEventListener('canplay', onOk); reject(new Error('重试仍失败')); };
+              let retryTimer: ReturnType<typeof setTimeout> | undefined;
+              const onOk = () => { cleanup2(); resolve(); };
+              const onErr2 = () => { cleanup2(); reject(new Error('重试仍失败')); };
+              const cleanup2 = () => {
+                a.removeEventListener('canplay', onOk);
+                a.removeEventListener('error', onErr2);
+                if (retryTimer) clearTimeout(retryTimer);
+              };
+              // 先注册监听器，再设置 src
               a.addEventListener('canplay', onOk, { once: true });
               a.addEventListener('error', onErr2, { once: true });
-              setTimeout(() => { a.removeEventListener('canplay', onOk); a.removeEventListener('error', onErr2); reject(new Error('重试超时')); }, 30000);
+              a.src = retriedUrl;
+              if (a.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+                cleanup2(); resolve(); return;
+              }
+              retryTimer = setTimeout(() => { cleanup2(); reject(new Error('重试超时')); }, 30000);
             });
             // Check again after await
             if (playSeqRef.current !== seq) return;
@@ -226,7 +241,8 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    if (!audio.src) {
+    // 检查是否有可播放的音频源（currentSrc 比 src 更可靠）
+    if (!audio.src && !audio.currentSrc) {
       setPlayError('没有可播放的歌曲');
       return;
     }
