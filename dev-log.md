@@ -13,6 +13,15 @@
   - `index.ts`: 启动健康检查超时从5s增至45s，日志更明确（✅/❌标识）
 - **涉及文件**: `render.yaml`, `server/src/app.ts`, `server/src/index.ts`, `server/src/modules/music/music.service.ts`
 
+### fix: 客户端错误信息透传
+- **问题**: SearchPanel 搜索失败/选歌失败时只显示通用"获取播放链接失败"，用户无法知道真实原因
+- **问题**: `play()` 函数忽略服务器返回的 `data.error`，只显示"获取歌曲链接失败"
+- **修复**: 搜索失败显示服务器返回的具体错误（如"网易云API不可达"）
+- **修复**: 选歌失败显示 `data.error` 而非通用提示
+- **修复**: `play()` 捕获 `data.error` 并展示给用户
+- **移动端**: 错误toast `bottom:70px`（避免与控制栏重叠），`max-width:90vw`，`word-break:break-word`
+- **涉及文件**: `client/src/components/SearchPanel.tsx`, `client/src/hooks/usePlayer.ts`, `client/src/App.tsx`
+
 ### feat: 左右分屏布局 + 移动端适配
 - 新增分屏布局：桌面端点击歌词按钮后，左侧封面+右侧歌词
 - 可拖拽分割线：鼠标/触屏拖拽调整左右比例（25%~75%），双击重置50/50
