@@ -330,7 +330,10 @@ export function createApp() {
       });
       // 上游可能返回 206 或 200
       if (!audioRes.ok && audioRes.status !== 206) {
-        return res.status(audioRes.status).json({ error: `上游返回: ${audioRes.status}` });
+        // 上游 403 通常意味着 CDN 签名 URL 过期，客户端应 force 刷新
+        const status = audioRes.status === 403 ? 410 : audioRes.status;
+        const hint = audioRes.status === 403 ? 'URL已过期，请刷新' : `上游返回: ${audioRes.status}`;
+        return res.status(status).json({ error: hint });
       }
 
       // 修正 Content-Type：音频文件不应带 charset，且确保是浏览器支持的格式
