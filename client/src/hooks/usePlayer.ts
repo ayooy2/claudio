@@ -68,6 +68,24 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
     let serverError: string | null = null;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
+    // 客户端URL缓存：歌曲解析后缓存到localStorage，刷新页面不用重新请求
+    if (!url) {
+      try {
+        const cacheKey = `claudio_url_${song.name}_${song.artist}`;
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const { url: cachedUrl, ts } = JSON.parse(cached);
+          // 缓存10分钟有效（与服务端URL_CACHE_TTL一致）
+          if (cachedUrl && Date.now() - ts < 10 * 60 * 1000) {
+            url = cachedUrl;
+            setCurrent(prev => prev ? { ...prev, url } : prev);
+          } else {
+            localStorage.removeItem(cacheKey);
+          }
+        }
+      } catch {}
+    }
+
     // 如果歌曲已有URL，无需加载，清除可能残留的 loading 状态
     if (url) {
       setIsLoading(false);
@@ -92,6 +110,11 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
             url = toAbsoluteUrl(data.url);
             if (url) {
               setCurrent(prev => prev ? { ...prev, url, id: data.id || prev.id, cover: data.cover || prev.cover, isTrial: data.isTrial } : prev);
+              // 写入客户端URL缓存
+              try {
+                const cacheKey = `claudio_url_${song.name}_${song.artist}`;
+                localStorage.setItem(cacheKey, JSON.stringify({ url, ts: Date.now() }));
+              } catch {}
             } else if (data.error) {
               serverError = data.error;
             }

@@ -545,22 +545,24 @@ export default function App() {
     el.volume = volumeRef.current;
   }, []);
 
-  // Pre-fetch next song URL
+  // Pre-fetch next 3 songs URLs（更积极的预取，减少切歌等待）
   useEffect(() => {
     if (!isPlaying || queue.length <= 1) return;
     let cancelled = false;
-    const nextIdx = (queueIdx + 1) % queue.length;
-    const nextSong = queue[nextIdx];
-    if (nextSong && !nextSong.url) {
-      const brParam = qualityRef.current ? `&br=${qualityRef.current}` : '';
-      fetch(apiUrl(`/api/song-url?name=${encodeURIComponent(nextSong.name)}&artist=${encodeURIComponent(nextSong.artist)}${brParam}`))
-        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-        .then(data => {
-          if (!cancelled && data.url) {
-            setQueue(prev => prev.map((s, i) => i === nextIdx ? { ...s, url: toAbsoluteUrl(data.url), id: data.id || s.id, cover: data.cover || s.cover } : s));
-          }
-        })
-        .catch(() => {});
+    const brParam = qualityRef.current ? `&br=${qualityRef.current}` : '';
+    for (let offset = 1; offset <= Math.min(3, queue.length - 1); offset++) {
+      const nextIdx = (queueIdx + offset) % queue.length;
+      const nextSong = queue[nextIdx];
+      if (nextSong && !nextSong.url) {
+        fetch(apiUrl(`/api/song-url?name=${encodeURIComponent(nextSong.name)}&artist=${encodeURIComponent(nextSong.artist)}${brParam}`))
+          .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+          .then(data => {
+            if (!cancelled && data.url) {
+              setQueue(prev => prev.map((s, i) => i === nextIdx ? { ...s, url: toAbsoluteUrl(data.url), id: data.id || s.id, cover: data.cover || s.cover } : s));
+            }
+          })
+          .catch(() => {});
+      }
     }
     return () => { cancelled = true; };
   }, [isPlaying, queueIdx, queue]);

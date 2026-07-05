@@ -326,7 +326,7 @@ export function createApp() {
 
       const audioRes = await fetch(audioUrl, {
         headers: upstreamHeaders,
-        signal: AbortSignal.timeout(30_000), // 30s 建立连接+首字节，流式传输不计时
+        signal: AbortSignal.timeout(10_000), // 10s 建立连接+首字节，流式传输不计时
       });
       // 上游可能返回 206 或 200
       if (!audioRes.ok && audioRes.status !== 206) {
@@ -352,29 +352,7 @@ export function createApp() {
         contentType = extMap[ext || ''] || 'audio/mpeg';
       }
 
-      // 缓冲第一个 chunk 做 magic byte 验证，通过后再写响应头
-      const reader = audioRes.body?.getReader();
-      if (!reader) return res.status(502).json({ error: '上游无响应体' });
-
-      const firstChunk = await reader.read();
-      if (firstChunk.done || !firstChunk.value || firstChunk.value.length < 12) {
-        return res.status(502).json({ error: '上游响应过小或为空' });
-      }
-
-      const magic = Buffer.from(firstChunk.value.slice(0, 12));
-      const isAudio =
-        (magic[0] === 0xFF && (magic[1] & 0xE0) === 0xE0) || // MP3 sync word
-        magic.toString('ascii', 0, 3) === 'ID3' ||            // MP3 ID3 tag
-        magic.toString('ascii', 0, 4) === 'fLaC' ||           // FLAC
-        magic.toString('ascii', 0, 4) === 'OggS' ||           // OGG
-        magic.toString('ascii', 4, 8) === 'ftyp' ||           // M4A/AAC
-        magic.toString('ascii', 0, 4) === 'RIFF';             // WAV
-      if (!isAudio) {
-        logger.warn('音频代理：上游返回非音频数据，前12字节:', magic.toString('hex'));
-        return res.status(502).json({ error: '上游返回非音频数据' });
-      }
-
-      // 验证通过，设置响应头
+      // 设置响应头（已验证域名可信，直接流式传输，跳过magic byte缓冲）
       const isRangeResponse = audioRes.status === 206;
       res.status(isRangeResponse ? 206 : 200);
       res.setHeader('Content-Type', contentType);
@@ -386,18 +364,20 @@ export function createApp() {
       const contentRange = audioRes.headers.get('content-range');
       if (contentRange) res.setHeader('Content-Range', contentRange);
 
-      // 写第一个 chunk 并继续流式传输
-      res.write(Buffer.from(firstChunk.value));
-      let bytesWritten = firstChunk.value.length;
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (res.destroyed) break; // 客户端断开连接
-        res.write(Buffer.from(value));
-        bytesWritten += value.length;
-      }
-      if (!isRangeResponse && bytesWritten < 1024) {
-        logger.warn(`音频代理：响应体过小 (${bytesWritten} bytes)，可能无效`);
+      // 直接流式传输（跳过magic byte缓冲，减少首字节延迟）
+      if (audioRes.body) {
+        const reader = audioRes.body.getReader();
+        let bytesWritten = 0;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (res.destroyed) break;
+          res.write(Buffer.from(value));
+          bytesWritten += value.length;
+        }
+        if (!isRangeResponse && bytesWritten < 1024) {
+          logger.warn(`音频代理：响应体过小 (${bytesWritten} bytes)，可能无效`);
+        }
       }
       res.end();
     } catch (err) {

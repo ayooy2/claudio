@@ -76,9 +76,9 @@ const URL_CACHE_TTL = 10 * 60 * 1000;         // 10 min (CDN签名URL约20分钟
 const COMMENT_CACHE_TTL = 12 * 60 * 60 * 1000; // 12 hours
 const SONGID_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
-// Rate limit intervals
-const SEARCH_INTERVAL = 1500;  // 1.5s between searches
-const URL_INTERVAL = 700;      // 0.7s between URL fetches
+// Rate limit intervals (本地netease-api可降低间隔)
+const SEARCH_INTERVAL = 300;   // 0.3s between searches
+const URL_INTERVAL = 200;      // 0.2s between URL fetches
 
 // ====== Types ======
 export interface TopComment {
