@@ -58,14 +58,18 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
 
   const play = useCallback(async (song: SongInfo) => {
     const seq = ++playSeqRef.current;
-    setCurrent(song);
+    // 立即暂停当前音频，避免旧歌继续播放
+    if (audioRef.current) { try { audioRef.current.pause(); } catch {} }
     setCurrentTime(0);
     setDuration(song.duration || 0);
     setPlayError(null);
+    setIsLoading(true);
 
     let url = song.url;
     let timedOut = false;
     let serverError: string | null = null;
+    let serverCover: string | null = null;
+    let serverIsTrial: boolean | undefined;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
     // 客户端URL缓存：歌曲解析后缓存到localStorage，刷新页面不用重新请求
@@ -86,9 +90,10 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
       } catch {}
     }
 
-    // 如果歌曲已有URL，无需加载，清除可能残留的 loading 状态
+    // 如果歌曲已有URL（来自缓存或队列），立即设置current
     if (url) {
       setIsLoading(false);
+      setCurrent(prev => prev ? { ...prev, ...song, url } : { ...song, url });
     }
 
     if (!url) {
@@ -109,7 +114,8 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
             const data = await res.json();
             url = toAbsoluteUrl(data.url);
             if (url) {
-              setCurrent(prev => prev ? { ...prev, url, id: data.id || prev.id, cover: data.cover || prev.cover, isTrial: data.isTrial } : prev);
+              serverCover = data.cover || null;
+              serverIsTrial = data.isTrial;
               // 写入客户端URL缓存
               try {
                 const cacheKey = `claudio_url_${song.name}_${song.artist}`;
@@ -140,6 +146,8 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
     if (playSeqRef.current !== seq) return;
 
     if (!url) {
+      // 播放失败：仍然显示歌名，但标记为失败状态
+      setCurrent(song);
       setIsPlaying(false);
       if (timedOut) {
         setPlayError('连接超时，服务器可能正在启动中（约需30-60秒），请稍后重试');
@@ -150,6 +158,12 @@ export function usePlayer(qualityRef?: React.RefObject<number>) {
       }
       return;
     }
+
+    // URL获取成功且seq检查通过，此时才更新current（避免快速切歌时UI显示错误歌名）
+    setCurrent(prev => {
+      const base = prev || song;
+      return { ...base, ...song, url, id: base.id || song.id, cover: serverCover || base.cover || song.cover, isTrial: serverIsTrial ?? song.isTrial };
+    });
 
     // Play with audio element
     const audio = audioRef.current;
