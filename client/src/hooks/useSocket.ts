@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { apiUrl } from '../lib/api.js';
 
-// 生产模式连接后端地址，开发模式连接当前 origin（走 Vite proxy）
-const WS_URL = (import.meta.env.VITE_API_BASE || `${location.protocol}//${location.host}`).replace(/\/$/, '');
+// WebSocket 直连后端（不经过边缘代理，Pages Functions 不支持 WebSocket）
+// 优先 VITE_WS_URL > VITE_API_BASE > 当前 origin
+const WS_URL = (import.meta.env.VITE_WS_URL || import.meta.env.VITE_API_BASE || `${location.protocol}//${location.host}`).replace(/\/$/, '');
 
 export function useSocket() {
   const socket = useRef<Socket | null>(null);
