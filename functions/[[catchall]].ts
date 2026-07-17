@@ -4,7 +4,7 @@
  * WebSocket (socket.io) 不经过此代理，客户端直连 Render。
  */
 
-const BACKEND = 'https://claudio-api.onrender.com';
+const BACKEND = 'https://claudio-api-rymi.onrender.com';
 
 // 不代理的路径前缀
 const SKIP_PREFIXES = ['/ws', '/socket.io'];
