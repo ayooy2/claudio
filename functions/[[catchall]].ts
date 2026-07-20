@@ -1,20 +1,20 @@
 /**
  * Cloudflare Pages Functions — 边缘代理
- * 将 HTTP 请求代理到 Render 后端，利用 Cloudflare 全球边缘节点降低延迟。
- * WebSocket (socket.io) 不经过此代理，客户端直连 Render。
+ * 仅代理 /api/* 和 /audio-proxy 请求到 Render 后端。
+ * 静态文件（HTML/JS/CSS）由 Cloudflare Pages 直接服务，不经过此函数。
  */
 
 const BACKEND = 'https://claudio-api-rymi.onrender.com';
 
-// 不代理的路径前缀
-const SKIP_PREFIXES = ['/ws', '/socket.io'];
+// 只代理这些路径前缀
+const PROXY_PREFIXES = ['/api/', '/audio-proxy'];
 
 export const onRequest: PagesFunction = async (ctx) => {
   const url = new URL(ctx.request.url);
   const path = url.pathname;
 
-  // 跳过 WebSocket 相关路径
-  if (SKIP_PREFIXES.some(p => path.startsWith(p))) {
+  // 只代理 API 和音频请求，其他路径返回 404（让 Pages 服务静态文件）
+  if (!PROXY_PREFIXES.some(p => path.startsWith(p))) {
     return new Response('Not Found', { status: 404 });
   }
 
